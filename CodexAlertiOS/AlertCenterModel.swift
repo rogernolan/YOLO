@@ -9,6 +9,7 @@ final class AlertCenterModel {
     private(set) var isLoading = false
     var errorMessage: String?
     private(set) var readAlertIDs: Set<UUID> = []
+    private(set) var responsesByAlertID: [UUID: AttentionResponse] = [:]
 
     private let syncService: AlertSyncService
 
@@ -20,6 +21,7 @@ final class AlertCenterModel {
         do {
             alerts = try await syncService.loadCachedAlerts()
             readAlertIDs = try await syncService.loadReadAlertIDs()
+            responsesByAlertID = try await syncService.loadResponses(for: alerts.map(\.id))
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -32,6 +34,7 @@ final class AlertCenterModel {
         do {
             alerts = try await syncService.sync(notifyForNewAlerts: true).alerts
             readAlertIDs = try await syncService.loadReadAlertIDs()
+            responsesByAlertID = try await syncService.loadResponses(for: alerts.map(\.id))
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -67,6 +70,29 @@ final class AlertCenterModel {
             try await syncService.delete(ids: ids)
             alerts.remove(atOffsets: offsets)
             readAlertIDs.subtract(ids)
+            for id in ids {
+                responsesByAlertID.removeValue(forKey: id)
+            }
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func response(for alert: AttentionAlert) -> AttentionResponse? {
+        responsesByAlertID[alert.id]
+    }
+
+    func submitResponse(_ answer: String, for alert: AttentionAlert) async {
+        do {
+            let response = try await syncService.submitResponse(
+                answer,
+                for: alert,
+                responder: "Rog"
+            )
+            responsesByAlertID[alert.id] = response
+            try await syncService.markAsRead(ids: [alert.id])
+            readAlertIDs.insert(alert.id)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -107,6 +133,19 @@ actor AlertSyncService {
 
     func loadReadAlertIDs() async throws -> Set<UUID> {
         try await readStore.load()
+    }
+
+    func loadResponses(for alertIDs: [UUID]) async throws -> [UUID: AttentionResponse] {
+        #if canImport(CloudKit)
+        guard CodexAlertConfig.cloudKit.isUsable else {
+            return [:]
+        }
+
+        let sync = CloudKitAttentionSync(containerIdentifier: CodexAlertConfig.cloudKit.containerIdentifier)
+        return try await sync.fetchResponses(for: alertIDs)
+        #else
+        return [:]
+        #endif
     }
 
     func sync(notifyForNewAlerts: Bool) async throws -> AlertSyncResult {
@@ -154,6 +193,33 @@ actor AlertSyncService {
         try await readStore.remove(ids: ids)
     }
 
+    func submitResponse(
+        _ answer: String,
+        for alert: AttentionAlert,
+        responder: String
+    ) async throws -> AttentionResponse {
+        #if canImport(CloudKit)
+        guard CodexAlertConfig.cloudKit.isUsable else {
+            throw AlertResponseError.cloudKitUnavailable
+        }
+
+        guard alert.responseOptions?.contains(answer.lowercased()) == true else {
+            throw AlertResponseError.invalidAnswer
+        }
+
+        let response = AttentionResponse(
+            alertID: alert.id,
+            answer: answer,
+            responder: responder
+        )
+        let sync = CloudKitAttentionSync(containerIdentifier: CodexAlertConfig.cloudKit.containerIdentifier)
+        try await sync.saveResponse(response)
+        return response
+        #else
+        throw AlertResponseError.cloudKitUnavailable
+        #endif
+    }
+
     private func notify(for alert: AttentionAlert) async throws {
         let content = UNMutableNotificationContent()
         content.title = alert.notificationTitle
@@ -168,6 +234,20 @@ actor AlertSyncService {
         )
 
         try await UNUserNotificationCenter.current().add(request)
+    }
+}
+
+enum AlertResponseError: LocalizedError {
+    case cloudKitUnavailable
+    case invalidAnswer
+
+    var errorDescription: String? {
+        switch self {
+        case .cloudKitUnavailable:
+            "This response flow requires CloudKit to be enabled."
+        case .invalidAnswer:
+            "That answer is not valid for this question."
+        }
     }
 }
 

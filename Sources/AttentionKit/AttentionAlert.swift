@@ -24,6 +24,7 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
     public let taskName: String?
     public let projectName: String?
     public let type: AlertType
+    public let responseOptions: [String]?
     public let createdAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -35,11 +36,17 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         case taskName
         case projectName
         case type
+        case responseOptions
         case createdAt
     }
 
     public var notificationTitle: String {
         "\(sender) needs your attention"
+    }
+
+    public var expectsResponse: Bool {
+        guard let responseOptions else { return false }
+        return !responseOptions.isEmpty
     }
 
     public init(
@@ -51,6 +58,7 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         taskName: String? = nil,
         projectName: String? = nil,
         type: AlertType = .info,
+        responseOptions: [String]? = nil,
         createdAt: Date = Date()
     ) throws {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -58,6 +66,9 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         let normalizedSender = sender.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedTaskName = taskName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedProjectName = projectName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedResponseOptions = responseOptions?
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
 
         guard !normalizedTitle.isEmpty else {
             throw AttentionAlertError.emptyTitle
@@ -79,6 +90,7 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         self.taskName = normalizedTaskName?.isEmpty == false ? normalizedTaskName : nil
         self.projectName = normalizedProjectName?.isEmpty == false ? normalizedProjectName : nil
         self.type = type
+        self.responseOptions = normalizedResponseOptions?.isEmpty == false ? normalizedResponseOptions : nil
         self.createdAt = createdAt
     }
 
@@ -93,6 +105,7 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         self.taskName = try container.decodeIfPresent(String.self, forKey: .taskName)
         self.projectName = try container.decodeIfPresent(String.self, forKey: .projectName)
         self.type = try container.decodeIfPresent(AlertType.self, forKey: .type) ?? .info
+        self.responseOptions = try container.decodeIfPresent([String].self, forKey: .responseOptions)
         self.createdAt = try container.decode(Date.self, forKey: .createdAt)
     }
 }

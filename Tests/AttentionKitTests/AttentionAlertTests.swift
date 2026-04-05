@@ -78,6 +78,27 @@ func commandParserBuildsAnAlertFromFlags() throws {
 }
 
 @Test
+func askCommandBuildsAYesNoQuestionAndWaitsWhenRequested() throws {
+    let command = try SendAlertCommand.parse([
+        "ask",
+        "--title", "Proceed with migration?",
+        "--body", "I found a risky migration edge. Should I continue?",
+        "--sender", "Codex",
+        "--project", "Codex Alert",
+        "--task", "Question flow",
+        "--wait",
+        "--timeout-seconds", "90",
+    ])
+
+    #expect(command.shouldWaitForResponse == true)
+    #expect(command.timeoutSeconds == 90)
+
+    let alert = try command.makeAlert()
+    #expect(alert.responseOptions == ["yes", "no"])
+    #expect(alert.type == .decision)
+}
+
+@Test
 func cloudKitConfigurationRejectsPlaceholderIdentifiers() {
     #expect(CloudKitSyncConfiguration(containerIdentifier: "iCloud.com.example.CodexAlert").isUsable == false)
     #expect(CloudKitSyncConfiguration(containerIdentifier: "").isUsable == false)
@@ -125,6 +146,26 @@ func alertDecodesLegacyPayloadWithoutNewMetadata() throws {
     #expect(alert.type == .info)
     #expect(alert.taskName == nil)
     #expect(alert.projectName == nil)
+}
+
+@Test
+func responseRecordRoundTripsAnswerPayload() throws {
+    let response = AttentionResponse(
+        alertID: UUID(uuidString: "52BDFE28-7FA5-4FEB-943D-3A5B833DBA9F")!,
+        answer: "yes",
+        responder: "Rog",
+        respondedAt: Date(timeIntervalSince1970: 1_000)
+    )
+
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+
+    let data = try encoder.encode(response)
+    let decoded = try decoder.decode(AttentionResponse.self, from: data)
+
+    #expect(decoded == response)
 }
 
 #if canImport(CloudKit)

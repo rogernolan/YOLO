@@ -1,6 +1,12 @@
 import Foundation
 
 public struct SendAlertCommand: Sendable {
+    public enum Kind: String, Sendable {
+        case send
+        case ask
+    }
+
+    public let kind: Kind
     public let title: String
     public let body: String
     public let sender: String
@@ -8,16 +14,22 @@ public struct SendAlertCommand: Sendable {
     public let taskName: String?
     public let projectName: String?
     public let type: AttentionAlert.AlertType
+    public let shouldWaitForResponse: Bool
+    public let timeoutSeconds: Int
 
     public init(
+        kind: Kind,
         title: String,
         body: String,
         sender: String,
         urgency: AttentionAlert.Urgency,
         taskName: String?,
         projectName: String?,
-        type: AttentionAlert.AlertType
+        type: AttentionAlert.AlertType,
+        shouldWaitForResponse: Bool,
+        timeoutSeconds: Int
     ) {
+        self.kind = kind
         self.title = title
         self.body = body
         self.sender = sender
@@ -25,26 +37,36 @@ public struct SendAlertCommand: Sendable {
         self.taskName = taskName
         self.projectName = projectName
         self.type = type
+        self.shouldWaitForResponse = shouldWaitForResponse
+        self.timeoutSeconds = timeoutSeconds
     }
 
     public static func parse(_ arguments: [String]) throws -> SendAlertCommand {
-        guard arguments.first == "send" else {
+        guard let commandName = arguments.first, let kind = Kind(rawValue: commandName) else {
             throw SendAlertCommandError.unsupportedCommand
         }
 
         var values: [String: String] = [:]
+        var flags = Set<String>()
         var index = 1
 
         while index < arguments.count {
             let key = arguments[index]
-            let nextIndex = index + 1
 
-            guard key.hasPrefix("--"), nextIndex < arguments.count else {
+            guard key.hasPrefix("--") else {
                 throw SendAlertCommandError.invalidArguments
             }
 
-            values[String(key.dropFirst(2))] = arguments[nextIndex]
-            index += 2
+            let normalizedKey = String(key.dropFirst(2))
+            let nextIndex = index + 1
+
+            if nextIndex < arguments.count, !arguments[nextIndex].hasPrefix("--") {
+                values[normalizedKey] = arguments[nextIndex]
+                index += 2
+            } else {
+                flags.insert(normalizedKey)
+                index += 1
+            }
         }
 
         guard let title = values["title"] else {
@@ -55,21 +77,28 @@ public struct SendAlertCommand: Sendable {
         }
 
         let sender = values["sender"] ?? "Codex"
-        let urgency = AttentionAlert.Urgency(rawValue: values["urgency"] ?? "normal")
-            ?? .normal
+        let defaultUrgency = kind == .ask ? "high" : "normal"
+        let urgency = AttentionAlert.Urgency(rawValue: values["urgency"] ?? defaultUrgency)
+            ?? (kind == .ask ? .high : .normal)
         let taskName = values["task"]
         let projectName = values["project"]
-        let type = AttentionAlert.AlertType(rawValue: values["type"] ?? "info")
-            ?? .info
+        let defaultType = kind == .ask ? "decision" : "info"
+        let type = AttentionAlert.AlertType(rawValue: values["type"] ?? defaultType)
+            ?? (kind == .ask ? .decision : .info)
+        let shouldWaitForResponse = flags.contains("wait")
+        let timeoutSeconds = Int(values["timeout-seconds"] ?? "1800") ?? 1800
 
         return SendAlertCommand(
+            kind: kind,
             title: title,
             body: body,
             sender: sender,
             urgency: urgency,
             taskName: taskName,
             projectName: projectName,
-            type: type
+            type: type,
+            shouldWaitForResponse: shouldWaitForResponse,
+            timeoutSeconds: timeoutSeconds
         )
     }
 
@@ -81,7 +110,8 @@ public struct SendAlertCommand: Sendable {
             urgency: urgency,
             taskName: taskName,
             projectName: projectName,
-            type: type
+            type: type,
+            responseOptions: kind == .ask ? ["yes", "no"] : nil
         )
     }
 }

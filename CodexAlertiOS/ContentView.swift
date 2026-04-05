@@ -22,7 +22,16 @@ struct ContentView: View {
                 } else {
                     List {
                         ForEach(model.alerts) { alert in
-                            AlertRow(alert: alert, isUnread: model.isUnread(alert))
+                            AlertRow(
+                                alert: alert,
+                                isUnread: model.isUnread(alert),
+                                response: model.response(for: alert),
+                                onRespond: { answer in
+                                    Task {
+                                        await model.submitResponse(answer, for: alert)
+                                    }
+                                }
+                            )
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     Task {
@@ -101,6 +110,8 @@ struct ContentView: View {
 private struct AlertRow: View {
     let alert: AttentionAlert
     let isUnread: Bool
+    let response: AttentionResponse?
+    let onRespond: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -147,6 +158,23 @@ private struct AlertRow: View {
                 Label(taskName, systemImage: "checklist")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            if let response {
+                Label("Answered \(response.answer.capitalized)", systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+            } else if let responseOptions = alert.responseOptions {
+                HStack(spacing: 10) {
+                    ForEach(responseOptions, id: \.self) { option in
+                        Button(option.capitalized) {
+                            onRespond(option)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(option == "yes" ? .green : .orange)
+                        .controlSize(.small)
+                    }
+                }
             }
 
             HStack {

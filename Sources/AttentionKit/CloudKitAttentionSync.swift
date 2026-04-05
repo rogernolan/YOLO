@@ -8,6 +8,7 @@ public struct CloudKitAttentionSync: Sendable {
     public static let feedRecordName = "recent-alerts"
     public static let recentRecordNamesKey = "recentRecordNames"
     public static let backgroundSubscriptionID = "attention-feed-background"
+    public static let responseRecordType = "AttentionResponse"
 
     private let database: CKDatabase
 
@@ -28,6 +29,7 @@ public struct CloudKitAttentionSync: Sendable {
         record["taskName"] = alert.taskName
         record["projectName"] = alert.projectName
         record["type"] = alert.type.rawValue
+        record["responseOptions"] = alert.responseOptions
         _ = try await database.save(record)
 
         try await updateFeed(with: alert.id.uuidString)
@@ -58,6 +60,45 @@ public struct CloudKitAttentionSync: Sendable {
             .sorted { $0.createdAt > $1.createdAt }
     }
 
+    public func saveResponse(_ response: AttentionResponse) async throws {
+        let record = CKRecord(
+            recordType: Self.responseRecordType,
+            recordID: CKRecord.ID(recordName: Self.responseRecordName(for: response.alertID))
+        )
+        record["alertID"] = response.alertID.uuidString
+        record["answer"] = response.answer
+        record["responder"] = response.responder
+        record["respondedAt"] = response.respondedAt
+        _ = try await database.save(record)
+    }
+
+    public func fetchResponse(for alertID: UUID) async throws -> AttentionResponse? {
+        let recordID = CKRecord.ID(recordName: Self.responseRecordName(for: alertID))
+        guard let record = try? await database.record(for: recordID) else {
+            return nil
+        }
+        return try Self.decodeResponse(record)
+    }
+
+    public func fetchResponses(for alertIDs: [UUID]) async throws -> [UUID: AttentionResponse] {
+        guard !alertIDs.isEmpty else {
+            return [:]
+        }
+
+        let recordIDs = alertIDs.map { CKRecord.ID(recordName: Self.responseRecordName(for: $0)) }
+        let result = try await database.records(for: recordIDs)
+
+        var responses: [UUID: AttentionResponse] = [:]
+        for (_, recordResult) in result {
+            guard let record = try? recordResult.get(),
+                  let response = try? Self.decodeResponse(record) else {
+                continue
+            }
+            responses[response.alertID] = response
+        }
+        return responses
+    }
+
     private static func decode(_ record: CKRecord) throws -> AttentionAlert {
         guard
             let title = record["title"] as? String,
@@ -80,7 +121,27 @@ public struct CloudKitAttentionSync: Sendable {
             taskName: record["taskName"] as? String,
             projectName: record["projectName"] as? String,
             type: type,
+            responseOptions: record["responseOptions"] as? [String],
             createdAt: record.creationDate ?? .now
+        )
+    }
+
+    private static func decodeResponse(_ record: CKRecord) throws -> AttentionResponse {
+        guard
+            let alertIDRawValue = record["alertID"] as? String,
+            let alertID = UUID(uuidString: alertIDRawValue),
+            let answer = record["answer"] as? String,
+            let responder = record["responder"] as? String
+        else {
+            throw CloudKitAttentionSyncError.invalidRecord
+        }
+
+        let respondedAt = record["respondedAt"] as? Date ?? record.modificationDate ?? .now
+        return AttentionResponse(
+            alertID: alertID,
+            answer: answer,
+            responder: responder,
+            respondedAt: respondedAt
         )
     }
 
@@ -113,6 +174,10 @@ public struct CloudKitAttentionSync: Sendable {
         notificationInfo.shouldSendContentAvailable = true
         subscription.notificationInfo = notificationInfo
         return subscription
+    }
+
+    public static func responseRecordName(for alertID: UUID) -> String {
+        "response-\(alertID.uuidString)"
     }
 }
 

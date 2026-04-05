@@ -21,6 +21,8 @@
 		A1000001000000000000000C /* FileAttentionAlertStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000010000000000000016 /* FileAttentionAlertStore.swift */; };
 		A1000001000000000000000D /* CloudKitAttentionSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000010000000000000017 /* CloudKitAttentionSync.swift */; };
 		A1000001000000000000000E /* CloudKitSyncConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000010000000000000019 /* CloudKitSyncConfiguration.swift */; };
+		A1000001000000000000000F /* AttentionResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000001F /* AttentionResponse.swift */; };
+		A1000001000000000000002A /* AttentionResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000001F /* AttentionResponse.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +41,7 @@
 		A1000001000000000000001C /* CodexAlertCLI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CodexAlertCLI.entitlements; sourceTree = "<group>"; };
 		A1000001000000000000001D /* SendAlertCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SendAlertCommand.swift; path = Sources/AttentionKit/SendAlertCommand.swift; sourceTree = SOURCE_ROOT; };
 		A1000001000000000000001E /* CodexAlertCLI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CodexAlertCLI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000001000000000000001F /* AttentionResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttentionResponse.swift; path = Sources/AttentionKit/AttentionResponse.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +102,7 @@
 				A10000010000000000000017 /* CloudKitAttentionSync.swift */,
 				A10000010000000000000019 /* CloudKitSyncConfiguration.swift */,
 				A1000001000000000000001D /* SendAlertCommand.swift */,
+				A1000001000000000000001F /* AttentionResponse.swift */,
 			);
 			name = Shared;
 			sourceTree = "<group>";
@@ -227,6 +231,7 @@
 				A10000010000000000000006 /* FileAttentionAlertStore.swift in Sources */,
 				A10000010000000000000007 /* CloudKitAttentionSync.swift in Sources */,
 				A10000010000000000000008 /* CloudKitSyncConfiguration.swift in Sources */,
+				A1000001000000000000000F /* AttentionResponse.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -240,6 +245,7 @@
 				A1000001000000000000000C /* FileAttentionAlertStore.swift in Sources */,
 				A1000001000000000000000D /* CloudKitAttentionSync.swift in Sources */,
 				A1000001000000000000000E /* CloudKitSyncConfiguration.swift in Sources */,
+				A1000001000000000000002A /* AttentionResponse.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
