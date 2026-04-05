@@ -103,6 +103,30 @@ func fileStoreDeletesAlertsByIdentifier() async throws {
     #expect(alerts.isEmpty)
 }
 
+@Test
+func alertDecodesLegacyPayloadWithoutNewMetadata() throws {
+    let data = Data(
+        """
+        {
+          "body": "Please look at the latest build blocker.",
+          "createdAt": "2026-04-04T14:14:17Z",
+          "id": "52BDFE28-7FA5-4FEB-943D-3A5B833DBA9F",
+          "sender": "Codex",
+          "title": "Need review",
+          "urgency": "high"
+        }
+        """.utf8
+    )
+
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+
+    let alert = try decoder.decode(AttentionAlert.self, from: data)
+    #expect(alert.type == .info)
+    #expect(alert.taskName == nil)
+    #expect(alert.projectName == nil)
+}
+
 #if canImport(CloudKit)
 @Test
 func cloudKitBackgroundSubscriptionUsesSilentPushes() throws {

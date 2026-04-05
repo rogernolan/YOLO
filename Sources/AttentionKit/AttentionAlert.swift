@@ -26,6 +26,18 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
     public let type: AlertType
     public let createdAt: Date
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case body
+        case sender
+        case urgency
+        case taskName
+        case projectName
+        case type
+        case createdAt
+    }
+
     public var notificationTitle: String {
         "\(sender) needs your attention"
     }
@@ -68,6 +80,20 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         self.projectName = normalizedProjectName?.isEmpty == false ? normalizedProjectName : nil
         self.type = type
         self.createdAt = createdAt
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.body = try container.decode(String.self, forKey: .body)
+        self.sender = try container.decode(String.self, forKey: .sender)
+        self.urgency = try container.decode(Urgency.self, forKey: .urgency)
+        self.taskName = try container.decodeIfPresent(String.self, forKey: .taskName)
+        self.projectName = try container.decodeIfPresent(String.self, forKey: .projectName)
+        self.type = try container.decodeIfPresent(AlertType.self, forKey: .type) ?? .info
+        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
     }
 }
 
