@@ -46,6 +46,23 @@ public actor FileAttentionAlertStore {
             .sorted { $0.createdAt > $1.createdAt }
     }
 
+    public func delete(ids: [UUID]) async throws {
+        guard !ids.isEmpty, fileManager.fileExists(atPath: directory.path()) else {
+            return
+        }
+
+        let idSet = Set(ids)
+        let fileURLs = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+
+        for url in fileURLs where url.pathExtension == "json" {
+            let data = try Data(contentsOf: url)
+            let alert = try decoder.decode(AttentionAlert.self, from: data)
+            if idSet.contains(alert.id) {
+                try fileManager.removeItem(at: url)
+            }
+        }
+    }
+
     private func ensureDirectoryExists() throws {
         guard !fileManager.fileExists(atPath: directory.path()) else {
             return

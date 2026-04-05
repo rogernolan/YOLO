@@ -8,11 +8,22 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         case critical
     }
 
+    public enum AlertType: String, Codable, CaseIterable, Sendable {
+        case blocked
+        case decision
+        case approval
+        case review
+        case info
+    }
+
     public let id: UUID
     public let title: String
     public let body: String
     public let sender: String
     public let urgency: Urgency
+    public let taskName: String?
+    public let projectName: String?
+    public let type: AlertType
     public let createdAt: Date
 
     public var notificationTitle: String {
@@ -25,11 +36,16 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         body: String,
         sender: String,
         urgency: Urgency = .normal,
+        taskName: String? = nil,
+        projectName: String? = nil,
+        type: AlertType = .info,
         createdAt: Date = Date()
     ) throws {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedSender = sender.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedTaskName = taskName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedProjectName = projectName?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !normalizedTitle.isEmpty else {
             throw AttentionAlertError.emptyTitle
@@ -48,6 +64,9 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
         self.body = normalizedBody
         self.sender = normalizedSender
         self.urgency = urgency
+        self.taskName = normalizedTaskName?.isEmpty == false ? normalizedTaskName : nil
+        self.projectName = normalizedProjectName?.isEmpty == false ? normalizedProjectName : nil
+        self.type = type
         self.createdAt = createdAt
     }
 }

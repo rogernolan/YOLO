@@ -25,6 +25,9 @@ public struct CloudKitAttentionSync: Sendable {
         record["body"] = alert.body
         record["sender"] = alert.sender
         record["urgency"] = alert.urgency.rawValue
+        record["taskName"] = alert.taskName
+        record["projectName"] = alert.projectName
+        record["type"] = alert.type.rawValue
         _ = try await database.save(record)
 
         try await updateFeed(with: alert.id.uuidString)
@@ -66,12 +69,17 @@ public struct CloudKitAttentionSync: Sendable {
             throw CloudKitAttentionSyncError.invalidRecord
         }
 
+        let type = AttentionAlert.AlertType(rawValue: record["type"] as? String ?? "") ?? .info
+
         return try AttentionAlert(
             id: UUID(uuidString: record.recordID.recordName) ?? UUID(),
             title: title,
             body: body,
             sender: sender,
             urgency: urgency,
+            taskName: record["taskName"] as? String,
+            projectName: record["projectName"] as? String,
+            type: type,
             createdAt: record.creationDate ?? .now
         )
     }

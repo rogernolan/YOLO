@@ -20,8 +20,21 @@ struct ContentView: View {
                         description: Text("Run the CLI with a CloudKit container configured, then pull to refresh.")
                     )
                 } else {
-                    List(model.alerts) { alert in
-                        AlertRow(alert: alert)
+                    List {
+                        ForEach(model.alerts) { alert in
+                            AlertRow(alert: alert, isUnread: model.isUnread(alert))
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    Task {
+                                        await model.markAsRead(alert)
+                                    }
+                                }
+                        }
+                        .onDelete { offsets in
+                            Task {
+                                await model.deleteAlerts(at: offsets)
+                            }
+                        }
                     }
                     .listStyle(.plain)
                     .refreshable {
@@ -87,12 +100,39 @@ struct ContentView: View {
 
 private struct AlertRow: View {
     let alert: AttentionAlert
+    let isUnread: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
-                Text(alert.title)
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        if isUnread {
+                            Circle()
+                                .fill(.blue)
+                                .frame(width: 8, height: 8)
+                        }
+
+                        Text(alert.title)
+                            .font(.headline)
+                            .fontWeight(isUnread ? .semibold : .regular)
+                    }
+
+                    HStack(spacing: 8) {
+                        Text(alert.type.rawValue.capitalized)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(typeColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(typeColor)
+
+                        if let projectName = alert.projectName {
+                            Label(projectName, systemImage: "folder")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 Spacer()
                 Text(alert.urgency.rawValue.capitalized)
                     .font(.caption.weight(.semibold))
@@ -102,6 +142,12 @@ private struct AlertRow: View {
             Text(alert.body)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if let taskName = alert.taskName {
+                Label(taskName, systemImage: "checklist")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             HStack {
                 Label(alert.sender, systemImage: "person.wave.2")
@@ -124,6 +170,21 @@ private struct AlertRow: View {
             .orange
         case .critical:
             .red
+        }
+    }
+
+    private var typeColor: Color {
+        switch alert.type {
+        case .blocked:
+            .red
+        case .decision:
+            .orange
+        case .approval:
+            .blue
+        case .review:
+            .green
+        case .info:
+            .secondary
         }
     }
 }

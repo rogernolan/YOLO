@@ -21,6 +21,13 @@ struct CodexAlertCLI {
 
             print("Saved alert \(alert.id.uuidString) to \(Self.defaultAlertsDirectory.path())")
             print("Title: \(alert.title)")
+            if let projectName = alert.projectName {
+                print("Project: \(projectName)")
+            }
+            if let taskName = alert.taskName {
+                print("Task: \(taskName)")
+            }
+            print("Type: \(alert.type.rawValue)")
             print("Urgency: \(alert.urgency.rawValue)")
         } catch {
             fputs("\(error.localizedDescription)\n", stderr)
@@ -35,7 +42,7 @@ struct CodexAlertCLI {
 
     private static let usage = """
     Usage:
-      codex-alert send --title "Need input" --body "Please review this blocker." [--sender Codex] [--urgency low|normal|high|critical]
+      codex-alert send --title "Need input" --body "Please review this blocker." [--sender Codex] [--urgency low|normal|high|critical] [--task "Task name"] [--project "Project name"] [--type blocked|decision|approval|review|info]
 
     """
 }

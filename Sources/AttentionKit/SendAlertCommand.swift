@@ -5,17 +5,26 @@ public struct SendAlertCommand: Sendable {
     public let body: String
     public let sender: String
     public let urgency: AttentionAlert.Urgency
+    public let taskName: String?
+    public let projectName: String?
+    public let type: AttentionAlert.AlertType
 
     public init(
         title: String,
         body: String,
         sender: String,
-        urgency: AttentionAlert.Urgency
+        urgency: AttentionAlert.Urgency,
+        taskName: String?,
+        projectName: String?,
+        type: AttentionAlert.AlertType
     ) {
         self.title = title
         self.body = body
         self.sender = sender
         self.urgency = urgency
+        self.taskName = taskName
+        self.projectName = projectName
+        self.type = type
     }
 
     public static func parse(_ arguments: [String]) throws -> SendAlertCommand {
@@ -48,12 +57,19 @@ public struct SendAlertCommand: Sendable {
         let sender = values["sender"] ?? "Codex"
         let urgency = AttentionAlert.Urgency(rawValue: values["urgency"] ?? "normal")
             ?? .normal
+        let taskName = values["task"]
+        let projectName = values["project"]
+        let type = AttentionAlert.AlertType(rawValue: values["type"] ?? "info")
+            ?? .info
 
         return SendAlertCommand(
             title: title,
             body: body,
             sender: sender,
-            urgency: urgency
+            urgency: urgency,
+            taskName: taskName,
+            projectName: projectName,
+            type: type
         )
     }
 
@@ -62,7 +78,10 @@ public struct SendAlertCommand: Sendable {
             title: title,
             body: body,
             sender: sender,
-            urgency: urgency
+            urgency: urgency,
+            taskName: taskName,
+            projectName: projectName,
+            type: type
         )
     }
 }
