@@ -9,6 +9,10 @@ public struct CloudKitAttentionSync: Sendable {
     public static let recentRecordNamesKey = "recentRecordNames"
     public static let backgroundSubscriptionID = "attention-feed-background"
     public static let responseRecordType = "AttentionResponse"
+    public static let deviceRegistrationRecordType = "AttentionDeviceRegistration"
+    public static let deviceRegistrationFeedRecordType = "AttentionDeviceFeed"
+    public static let deviceRegistrationFeedRecordName = "registered-devices"
+    public static let deviceRegistrationRecordNamesKey = "deviceRecordNames"
 
     private let database: CKDatabase
 
@@ -99,6 +103,46 @@ public struct CloudKitAttentionSync: Sendable {
         return responses
     }
 
+    public func saveDeviceRegistration(_ registration: AttentionDeviceRegistration) async throws {
+        let record = CKRecord(
+            recordType: Self.deviceRegistrationRecordType,
+            recordID: CKRecord.ID(recordName: Self.deviceRegistrationRecordName(for: registration.id))
+        )
+        record["token"] = registration.token
+        record["platform"] = registration.platform
+        record["bundleIdentifier"] = registration.bundleIdentifier
+        record["createdAt"] = registration.createdAt
+        record["updatedAt"] = registration.updatedAt
+        _ = try await database.save(record)
+
+        try await updateDeviceRegistrationFeed(with: record.recordID.recordName)
+    }
+
+    public func fetchDeviceRegistrations(limit: Int = 10) async throws -> [AttentionDeviceRegistration] {
+        let feedRecordID = CKRecord.ID(recordName: Self.deviceRegistrationFeedRecordName)
+
+        guard let feedRecord = try? await database.record(for: feedRecordID) else {
+            return []
+        }
+
+        let recordNames = (feedRecord[Self.deviceRegistrationRecordNamesKey] as? [String] ?? [])
+            .prefix(limit)
+
+        guard !recordNames.isEmpty else {
+            return []
+        }
+
+        let recordIDs = recordNames.map { CKRecord.ID(recordName: $0) }
+        let result = try await database.records(for: recordIDs)
+
+        return try result
+            .compactMap { _, recordResult in
+                let record = try recordResult.get()
+                return try Self.decodeDeviceRegistration(record)
+            }
+            .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
     private static func decode(_ record: CKRecord) throws -> AttentionAlert {
         guard
             let title = record["title"] as? String,
@@ -145,6 +189,25 @@ public struct CloudKitAttentionSync: Sendable {
         )
     }
 
+    private static func decodeDeviceRegistration(_ record: CKRecord) throws -> AttentionDeviceRegistration {
+        guard
+            let token = record["token"] as? String,
+            let platform = record["platform"] as? String,
+            let bundleIdentifier = record["bundleIdentifier"] as? String
+        else {
+            throw CloudKitAttentionSyncError.invalidRecord
+        }
+
+        return try AttentionDeviceRegistration(
+            id: record.recordID.recordName.replacingOccurrences(of: "device-", with: ""),
+            token: token,
+            platform: platform,
+            bundleIdentifier: bundleIdentifier,
+            createdAt: record["createdAt"] as? Date ?? record.creationDate ?? .now,
+            updatedAt: record["updatedAt"] as? Date ?? record.modificationDate ?? .now
+        )
+    }
+
     private func updateFeed(with recordName: String, limit: Int = 50) async throws {
         let feedRecordID = CKRecord.ID(recordName: Self.feedRecordName)
         let feedRecord: CKRecord
@@ -159,6 +222,24 @@ public struct CloudKitAttentionSync: Sendable {
         names.removeAll { $0 == recordName }
         names.insert(recordName, at: 0)
         feedRecord[Self.recentRecordNamesKey] = Array(names.prefix(limit))
+
+        _ = try await database.save(feedRecord)
+    }
+
+    private func updateDeviceRegistrationFeed(with recordName: String, limit: Int = 10) async throws {
+        let feedRecordID = CKRecord.ID(recordName: Self.deviceRegistrationFeedRecordName)
+        let feedRecord: CKRecord
+
+        if let existingRecord = try? await database.record(for: feedRecordID) {
+            feedRecord = existingRecord
+        } else {
+            feedRecord = CKRecord(recordType: Self.deviceRegistrationFeedRecordType, recordID: feedRecordID)
+        }
+
+        var names = feedRecord[Self.deviceRegistrationRecordNamesKey] as? [String] ?? []
+        names.removeAll { $0 == recordName }
+        names.insert(recordName, at: 0)
+        feedRecord[Self.deviceRegistrationRecordNamesKey] = Array(names.prefix(limit))
 
         _ = try await database.save(feedRecord)
     }
@@ -178,6 +259,10 @@ public struct CloudKitAttentionSync: Sendable {
 
     public static func responseRecordName(for alertID: UUID) -> String {
         "response-\(alertID.uuidString)"
+    }
+
+    public static func deviceRegistrationRecordName(for registrationID: String) -> String {
+        "device-\(registrationID)"
     }
 }
 

@@ -24,6 +24,12 @@ struct CodexAlertCLIApp: App {
             let store = FileAttentionAlertStore(directory: Self.defaultAlertsDirectory)
             try await store.save(alert)
             var cloudKitSync: CloudKitAttentionSync?
+            let apnsConfiguration = APNsPushConfiguration.fromEnvironment(
+                ProcessInfo.processInfo.environment.reduce(into: [String: String]()) { result, item in
+                    result[item.key] = item.value
+                },
+                defaultTopic: "net.hatbat.CodexAlert"
+            )
 
             let configuration = CloudKitSyncConfiguration(
                 containerIdentifier: ProcessInfo.processInfo.environment["CODEX_ALERT_CONTAINER"]
@@ -36,6 +42,19 @@ struct CodexAlertCLIApp: App {
                 try await sync.upload(alert)
                 cloudKitSync = sync
                 print("Uploaded alert to CloudKit container \(configuration.containerIdentifier)")
+
+                if apnsConfiguration.isUsable {
+                    let registrations = try await sync.fetchDeviceRegistrations()
+                    if registrations.isEmpty {
+                        print("No registered APNs devices found; skipping direct push.")
+                    } else {
+                        let sender = APNsPushSender(configuration: apnsConfiguration)
+                        try await sender.send(alert: alert, to: registrations)
+                        print("Sent APNs push to \(registrations.count) registered device(s)")
+                    }
+                } else {
+                    print("APNs configuration not present; skipping direct push.")
+                }
             }
             #endif
 

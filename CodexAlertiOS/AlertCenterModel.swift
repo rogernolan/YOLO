@@ -148,6 +148,27 @@ actor AlertSyncService {
         #endif
     }
 
+    func registerDeviceToken(
+        _ token: Data,
+        installationID: String,
+        bundleIdentifier: String
+    ) async throws {
+        #if canImport(CloudKit)
+        guard CodexAlertConfig.cloudKit.isUsable else {
+            return
+        }
+
+        let registration = try AttentionDeviceRegistration(
+            id: installationID,
+            token: token.map { String(format: "%02x", $0) }.joined(),
+            platform: "iOS",
+            bundleIdentifier: bundleIdentifier
+        )
+        let sync = CloudKitAttentionSync(containerIdentifier: CodexAlertConfig.cloudKit.containerIdentifier)
+        try await sync.saveDeviceRegistration(registration)
+        #endif
+    }
+
     func sync(notifyForNewAlerts: Bool) async throws -> AlertSyncResult {
         var mergedAlerts = try await store.loadAll()
         var newAlerts: [AttentionAlert] = []

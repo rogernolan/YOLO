@@ -16,6 +16,8 @@ struct CodexAlertApp: App {
 }
 
 final class CodexAlertAppDelegate: NSObject, UIApplicationDelegate {
+    private let installationID = InstallationIDStore.installationID
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -27,6 +29,30 @@ final class CodexAlertAppDelegate: NSObject, UIApplicationDelegate {
         }
 
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Task {
+            do {
+                try await AlertSyncService.shared.registerDeviceToken(
+                    deviceToken,
+                    installationID: installationID,
+                    bundleIdentifier: Bundle.main.bundleIdentifier ?? "net.hatbat.CodexAlert"
+                )
+            } catch {
+                NSLog("APNs device registration upload failed: %@", error.localizedDescription)
+            }
+        }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: any Error
+    ) {
+        NSLog("APNs device registration failed: %@", error.localizedDescription)
     }
 
     func application(
@@ -69,5 +95,21 @@ final class CodexAlertAppDelegate: NSObject, UIApplicationDelegate {
             NSLog("CloudKit background subscription setup failed: %@", error.localizedDescription)
         }
         #endif
+    }
+}
+
+private enum InstallationIDStore {
+    private static let key = "CodexAlertInstallationID"
+
+    static var installationID: String {
+        let defaults = UserDefaults.standard
+
+        if let existing = defaults.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+
+        let newValue = UUID().uuidString
+        defaults.set(newValue, forKey: key)
+        return newValue
     }
 }

@@ -168,6 +168,41 @@ func responseRecordRoundTripsAnswerPayload() throws {
     #expect(decoded == response)
 }
 
+@Test
+func deviceRegistrationNormalizesTokenAndBundleMetadata() throws {
+    let registration = try AttentionDeviceRegistration(
+        id: " install-1 ",
+        token: " ABCDEF1234 ",
+        platform: " iOS ",
+        bundleIdentifier: " net.hatbat.CodexAlert "
+    )
+
+    #expect(registration.id == "install-1")
+    #expect(registration.token == "abcdef1234")
+    #expect(registration.platform == "iOS")
+    #expect(registration.bundleIdentifier == "net.hatbat.CodexAlert")
+}
+
+@Test
+func apnsConfigurationLoadsFromEnvironment() {
+    let configuration = APNsPushConfiguration.fromEnvironment(
+        [
+            "CODEX_ALERT_APNS_KEY_ID": "ABC123XYZ",
+            "CODEX_ALERT_APNS_TEAM_ID": "TEAM123456",
+            "CODEX_ALERT_APNS_KEY_PATH": "/tmp/AuthKey_TEST.p8",
+            "CODEX_ALERT_APNS_USE_SANDBOX": "true",
+        ],
+        defaultTopic: "net.hatbat.CodexAlert"
+    )
+
+    #expect(configuration.keyID == "ABC123XYZ")
+    #expect(configuration.teamID == "TEAM123456")
+    #expect(configuration.keyPath == "/tmp/AuthKey_TEST.p8")
+    #expect(configuration.topic == "net.hatbat.CodexAlert")
+    #expect(configuration.useSandbox == true)
+    #expect(configuration.host == "api.sandbox.push.apple.com")
+}
+
 #if canImport(CloudKit)
 @Test
 func cloudKitBackgroundSubscriptionUsesSilentPushes() throws {
@@ -176,5 +211,13 @@ func cloudKitBackgroundSubscriptionUsesSilentPushes() throws {
     #expect(subscription.subscriptionID == CloudKitAttentionSync.backgroundSubscriptionID)
     #expect(subscription.recordType == CloudKitAttentionSync.feedRecordType)
     #expect(subscription.notificationInfo?.shouldSendContentAvailable == true)
+}
+
+@Test
+func cloudKitDeviceRegistrationRecordNameUsesStablePrefix() {
+    #expect(
+        CloudKitAttentionSync.deviceRegistrationRecordName(for: "install-1")
+            == "device-install-1"
+    )
 }
 #endif

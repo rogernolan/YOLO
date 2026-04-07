@@ -6,6 +6,20 @@ SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
 DERIVED_DATA_DIR="${PROJECT_DIR}/.derived-data"
 APP_BINARY="${DERIVED_DATA_DIR}/Build/Products/Debug/CodexAlertCLI.app/Contents/MacOS/CodexAlertCLI"
+GLOBAL_ENV_FILE="${HOME}/.config/codex-alert/.env"
+LOCAL_ENV_FILE="${PROJECT_DIR}/.env.local"
+
+load_env_file() {
+  local env_file="$1"
+  if [[ -f "${env_file}" ]]; then
+    set -a
+    source "${env_file}"
+    set +a
+  fi
+}
+
+load_env_file "${GLOBAL_ENV_FILE}"
+load_env_file "${LOCAL_ENV_FILE}"
 
 COMMAND=send
 if [[ $# -gt 0 && ( "$1" == "send" || "$1" == "ask" ) ]]; then
