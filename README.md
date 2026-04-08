@@ -2,13 +2,16 @@
 
 Codex Alert is a small iPhone app plus macOS helper for agent-to-human attention handoff.
 
-It is meant for moments when Codex or Claude needs you to notice something away from the terminal:
+![Lock screen APNs notification](docs/screenshots/lock-screen-apns.png)
+
+It is meant for moments when Codex or Claude needs you to notice something whilst you are away from the terminal:
 
 - a blocker
 - an approval request
 - a design decision
 - a review prompt
-- a yes/no question that should round-trip back to the helper
+
+The app can also roundtrip a yes/no question back to the agent
 
 The project currently includes:
 
@@ -27,29 +30,18 @@ Current status:
 - iPhone device-token registration to CloudKit is implemented
 - macOS helper support for direct APNs sending is implemented
 
-If you are evaluating readiness, the honest summary is:
-
-- the app/inbox workflow works
-- the direct APNs path has now been validated end to end in a real local setup
-- this is still early software and should not yet be treated as battle-tested production infrastructure
+This is still early software and should not yet be treated as battle-tested production infrastructure
 
 ## Why this exists
 
-Agent workflows are great until the model needs attention and you are:
+Agent workflows are great until the model needs attention and you are not able to respond directly to the command line. 
 
-- away from your desk
-- waiting on a long build or refactor
-- in another room
-- not actively watching the Codex thread
-
-Codex Alert gives the agent a way to escalate onto your phone with context like:
+Codex Alert gives the agent a way to escalate onto your phone with context:
 
 - project name
 - task name
 - alert type
 - urgency
-
-It can also ask a yes/no question and let the phone app write the answer back to CloudKit so the Mac helper can continue.
 
 ## How it works
 
@@ -63,9 +55,11 @@ There are two delivery paths.
 4. The app stores it locally and shows it in the inbox.
 5. If iOS gives the app background time, it can schedule a local notification.
 
-This path is working now, but background presentation is best-effort.
+This path works but due to iOS background processing limitations alert presentation is best-effort.
 
 ### 2. Direct APNs path
+
+Effectively APNS from the command line
 
 1. The iPhone app asks for push permission and registers with APNs.
 2. iOS gives the app a device token.
@@ -74,8 +68,7 @@ This path is working now, but background presentation is best-effort.
 5. If APNs credentials are configured locally on the Mac, the helper sends a visible push directly through APNs.
 6. The iPhone app still uses CloudKit as the inbox/state system.
 
-This is the path intended to make lock-screen delivery reliable.
-It has now been tested end to end in a real local development setup using a real APNs auth key.
+This is intended to make lock-screen delivery reliable and fast
 
 ### Response flow
 
@@ -127,7 +120,7 @@ For question alerts:
 swift test
 ```
 
-Build the iPhone app:
+set up your signing in xcode.
 
 ```bash
 xcodebuild -project CodexAlert.xcodeproj \
@@ -148,7 +141,7 @@ xcodebuild -project CodexAlert.xcodeproj \
 
 ### 2. Configure the Apple-side identifiers
 
-Open [CodexAlert.xcodeproj](/Users/rog/Development/Codex%20alert/CodexAlert.xcodeproj) in Xcode and set:
+Open CodexAlert.xcodeproj in Xcode and set:
 
 - your Apple Developer team
 - your bundle identifier
@@ -160,6 +153,8 @@ This repo is currently configured around:
 
 - bundle ID: `net.hatbat.CodexAlert`
 - CloudKit container: `iCloud.net.hatbat.CodexAlert`
+
+These should be updated to your own identifiers.
 
 The app target and macOS helper must agree on the CloudKit container.
 
@@ -174,17 +169,12 @@ That first launch is important because it lets the app register its APNs device 
 
 ## APNs setup
 
-This section is for reliable visible push alerts from the helper.
+In order to deliver reliable visible push alerts from the helper we need to send apple push notifications from the command line helper.
 
 ### Who must create the APNs key
 
-If you are using an individual/personal Apple Developer account:
-
-- the Account Holder must create and download the APNs `.p8` key
-
-If you are using an organization account:
-
-- an Account Holder or Admin can usually do it
+If you are using an individual/personal Apple Developer account the Account Holder must create and download the APNs `.p8` key
+If you are using an organization account an Account Holder or Admin can usually do it
 
 ### Create the APNs auth key
 
@@ -202,7 +192,7 @@ You will need:
 - the APNs `Key ID`
 - your Apple Developer `Team ID`
 
-Apple only lets you download the `.p8` once.
+Apple only lets you download the `.p8` once. IF you lose it, you can make another...
 
 ### Store the APNs key locally
 
@@ -253,6 +243,7 @@ Important:
 - `CODEX_ALERT_APNS_USE_SANDBOX=true` is correct for an app installed from Xcode
 - switch to `false` only for production/TestFlight-style pushes
 
+Given this readme file and enough access, Codex or Claude can set this up given the p8 file.
 ## Sending alerts
 
 ### Normal alert
@@ -340,7 +331,7 @@ That skill tells Codex to send a phone alert when:
 
 If you are using Codex with local skills, the installed skill file is:
 
-- `/Users/rog/.codex/skills/attention-alerts/SKILL.md`
+- `.codex/skills/attention-alerts/SKILL.md`
 
 You do not strictly need a skill if you put the instruction directly into your Codex project guidance, but the skill is the cleanest setup.
 
@@ -356,36 +347,17 @@ If you need my attention, use `./scripts/send_phone_alert.sh`.
 - Include project, task, and type metadata whenever possible.
 ```
 
-## Operational notes
 
-- CloudKit inbox sync works today.
-- Direct APNs push is coded but still needs the first real `.p8`-backed end-to-end validation.
-- The helper already logs whether APNs config is present and whether direct push was attempted.
-- The iPhone app must be launched at least once after install so it can register and upload its APNs device token.
-- Background CloudKit notifications alone are not reliable enough to be treated as guaranteed lock-screen delivery.
+## Screenshots
 
-## Validation status
+### Inbox with question and actions
 
-What has been validated:
+![Inbox question](docs/screenshots/inbox-question.png)
 
-1. the app can register an APNs device token
-2. the device token can be stored in CloudKit
-3. the macOS helper can fetch the registered device
-4. the helper can send a direct APNs push using a real `.p8` auth key
-5. the push can appear as a visible lock-screen notification on the phone
+The app inbox showing unread alerts plus an active yes/no question.
 
-What is still not proven:
+### Answered question state
 
-- long-term reliability across app reinstalls, token rotation, and multiple devices
-- behavior in production/TestFlight configuration
-- operational robustness under repeated or parallel sends
+![Inbox answered](docs/screenshots/inbox-answered.png)
 
-## Screenshots to add later
-
-Useful GitHub screenshots would be:
-
-- the main alert list
-- an unread alert
-- a yes/no question
-- the answered state
-- a real lock-screen push once APNs is validated end to end
+The same question after answering, with the response recorded in the app.
