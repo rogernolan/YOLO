@@ -307,6 +307,14 @@ When you need my attention and the task has involved more than 10 minutes of act
 - `./scripts/send_phone_alert.sh send` for one-way alerts
 - `./scripts/send_phone_alert.sh ask` for questions that need 2-3 response choices
 
+Choose the mode with this rule:
+
+- If progress is blocked on the human choosing between concrete options, use `ask --wait`, not `send`.
+- If you already have a shortlist, top candidates, or a small menu of next steps, include those as explicit `--option` values.
+- For blocking questions, prefer `ask --wait` immediately instead of asking only in chat first.
+- If the human may be away, add a follow-up timeout when asking the blocking question so the helper can remind them without relying on the thread staying active.
+- Use `send` only for one-way notifications that do not require a reply to continue.
+
 Include:
 
 - a short title
@@ -315,8 +323,14 @@ Include:
 - `--task` with the current task
 - `--type` set to `blocked`, `decision`, `approval`, `review`, or `info`
 
-Use `ask --wait` when you need a response before continuing. Default to yes/no for binary decisions, or add `--option` 2 or 3 times for a richer choice set.
+Use `ask --wait` when you need a response before continuing. Default to yes/no for binary decisions, or add `--option` 2 or 3 times for a richer choice set. If you are asking the human to choose from the top 2-3 bugs, plans, or next steps, those items should be the options in the alert. Use chat-only questions for non-blocking clarifications that can safely wait.
 ```
+
+Short decision rubric:
+
+- If the agent cannot safely continue without the human's answer, use an alert.
+- If the question is only a clarification and work can continue safely, use chat.
+- If the human may be away and the answer is blocking, use `ask --wait` with helper-owned follow-up timing.
 
 ## Skills
 
