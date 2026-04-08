@@ -165,7 +165,7 @@ Run the app once on a real device, then:
 - allow notifications
 - allow push registration
 
-That first launch is important because it lets the app register its APNs device token and upload that token to CloudKit.
+This first launch is important because it lets the app register its APNs device token and add the token to CloudKit.
 
 ## APNs setup
 
@@ -192,7 +192,7 @@ You will need:
 - the APNs `Key ID`
 - your Apple Developer `Team ID`
 
-Apple only lets you download the `.p8` once. IF you lose it, you can make another...
+Apple only lets you download the `.p8` once. If you lose it, you can make another...
 
 ### Store the APNs key locally
 
@@ -334,6 +334,12 @@ If you are using Codex with local skills, the installed skill file is:
 - `.codex/skills/attention-alerts/SKILL.md`
 
 You do not strictly need a skill if you put the instruction directly into your Codex project guidance, but the skill is the cleanest setup.
+
+There is also a reusable per-project snippet in:
+
+- [docs/project-instructions-snippet.md](/Users/rog/Development/Codex%20alert/docs/project-instructions-snippet.md)
+
+Use that snippet in any repo-level `AGENTS.md` or project instructions file when you want Codex Alert enabled by default for that project.
 
 ## Configuring Claude
 
