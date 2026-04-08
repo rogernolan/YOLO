@@ -65,7 +65,8 @@ public struct APNsPushSender: Sendable {
                     subtitle: alert.title,
                     body: alert.body
                 ),
-                sound: "default"
+                sound: "default",
+                contentAvailable: 1
             ),
             alertID: alert.id.uuidString,
             projectName: alert.projectName,
@@ -159,6 +160,13 @@ private struct APNsPayload: Encodable {
 private struct APS: Encodable {
     let alert: APSAlert
     let sound: String
+    let contentAvailable: Int
+
+    enum CodingKeys: String, CodingKey {
+        case alert
+        case sound
+        case contentAvailable = "content-available"
+    }
 }
 
 private struct APSAlert: Encodable {

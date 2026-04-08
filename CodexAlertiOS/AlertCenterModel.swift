@@ -110,21 +110,35 @@ extension Notification.Name {
 }
 
 actor AlertSyncService {
+    private let localFallbackDecider: LocalNotificationFallbackDecider
+
     static let shared = AlertSyncService(
         store: FileAttentionAlertStore(
             directory: URL.documentsDirectory.appending(path: "Alerts", directoryHint: .isDirectory)
         ),
         readStore: AlertReadStateStore(
             fileURL: URL.documentsDirectory.appending(path: "AlertReadState.json")
-        )
+        ),
+        deliveryStore: AlertNotificationDeliveryStore(
+            fileURL: URL.documentsDirectory.appending(path: "AlertNotificationDelivery.json")
+        ),
+        localFallbackDecider: LocalNotificationFallbackDecider()
     )
 
     private let store: FileAttentionAlertStore
     private let readStore: AlertReadStateStore
+    private let deliveryStore: AlertNotificationDeliveryStore
 
-    init(store: FileAttentionAlertStore, readStore: AlertReadStateStore = AlertReadStateStore(fileURL: URL.documentsDirectory.appending(path: "AlertReadState.json"))) {
+    init(
+        store: FileAttentionAlertStore,
+        readStore: AlertReadStateStore = AlertReadStateStore(fileURL: URL.documentsDirectory.appending(path: "AlertReadState.json")),
+        deliveryStore: AlertNotificationDeliveryStore = AlertNotificationDeliveryStore(fileURL: URL.documentsDirectory.appending(path: "AlertNotificationDelivery.json")),
+        localFallbackDecider: LocalNotificationFallbackDecider = LocalNotificationFallbackDecider()
+    ) {
         self.store = store
         self.readStore = readStore
+        self.deliveryStore = deliveryStore
+        self.localFallbackDecider = localFallbackDecider
     }
 
     func loadCachedAlerts() async throws -> [AttentionAlert] {
@@ -172,6 +186,8 @@ actor AlertSyncService {
     func sync(notifyForNewAlerts: Bool) async throws -> AlertSyncResult {
         var mergedAlerts = try await store.loadAll()
         var newAlerts: [AttentionAlert] = []
+        let remotelyDeliveredAlertIDs = try await deliveryStore.load()
+        var consumedRemoteDeliveryIDs: [UUID] = []
 
         #if canImport(CloudKit)
         if CodexAlertConfig.cloudKit.isUsable {
@@ -190,11 +206,31 @@ actor AlertSyncService {
 
             if notifyForNewAlerts {
                 for alert in newAlerts {
-                    try await notify(for: alert)
+                    if remotelyDeliveredAlertIDs.contains(alert.id) {
+                        consumedRemoteDeliveryIDs.append(alert.id)
+                    } else {
+                        let shouldNotify = try await localFallbackDecider.shouldNotifyLocally(
+                            for: alert.id,
+                            initiallyDeliveredAlertIDs: remotelyDeliveredAlertIDs,
+                            refreshDeliveredAlertIDs: { [deliveryStore] in
+                                try await deliveryStore.load()
+                            }
+                        )
+
+                        if shouldNotify {
+                            try await notify(for: alert)
+                        } else {
+                            consumedRemoteDeliveryIDs.append(alert.id)
+                        }
+                    }
                 }
             }
         }
         #endif
+
+        if !consumedRemoteDeliveryIDs.isEmpty {
+            try await deliveryStore.remove(ids: consumedRemoteDeliveryIDs)
+        }
 
         if !newAlerts.isEmpty {
             await MainActor.run {
@@ -212,6 +248,11 @@ actor AlertSyncService {
     func delete(ids: [UUID]) async throws {
         try await store.delete(ids: ids)
         try await readStore.remove(ids: ids)
+        try await deliveryStore.remove(ids: ids)
+    }
+
+    func markDeliveredByRemotePush(alertID: UUID) async throws {
+        try await deliveryStore.markDelivered(ids: [alertID])
     }
 
     func submitResponse(
@@ -294,6 +335,54 @@ actor AlertReadStateStore {
     }
 
     func markAsRead(ids: [UUID]) throws {
+        var existing = try load()
+        existing.formUnion(ids)
+        try save(existing)
+    }
+
+    func remove(ids: [UUID]) throws {
+        guard !ids.isEmpty else {
+            return
+        }
+
+        var existing = try load()
+        existing.subtract(ids)
+        try save(existing)
+    }
+
+    private func save(_ ids: Set<UUID>) throws {
+        let directory = fileURL.deletingLastPathComponent()
+        if !fileManager.fileExists(atPath: directory.path()) {
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+
+        let data = try encoder.encode(Array(ids))
+        try data.write(to: fileURL, options: .atomic)
+    }
+}
+
+actor AlertNotificationDeliveryStore {
+    private let fileURL: URL
+    private let encoder = JSONEncoder()
+    private let decoder = JSONDecoder()
+    private let fileManager: FileManager
+
+    init(fileURL: URL, fileManager: FileManager = .default) {
+        self.fileURL = fileURL
+        self.fileManager = fileManager
+    }
+
+    func load() throws -> Set<UUID> {
+        guard fileManager.fileExists(atPath: fileURL.path()) else {
+            return []
+        }
+
+        let data = try Data(contentsOf: fileURL)
+        let ids = try decoder.decode([UUID].self, from: data)
+        return Set(ids)
+    }
+
+    func markDelivered(ids: [UUID]) throws {
         var existing = try load()
         existing.formUnion(ids)
         try save(existing)

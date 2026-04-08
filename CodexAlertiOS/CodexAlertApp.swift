@@ -60,6 +60,19 @@ final class CodexAlertAppDelegate: NSObject, UIApplicationDelegate {
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
+        if let alertID = Self.directAlertID(from: userInfo) {
+            Task {
+                do {
+                    try await AlertSyncService.shared.markDeliveredByRemotePush(alertID: alertID)
+                    let result = try await AlertSyncService.shared.sync(notifyForNewAlerts: true)
+                    completionHandler(result.newAlerts.isEmpty ? .noData : .newData)
+                } catch {
+                    completionHandler(.failed)
+                }
+            }
+            return
+        }
+
         guard CodexAlertConfig.cloudKit.isUsable else {
             completionHandler(.noData)
             return
@@ -95,6 +108,14 @@ final class CodexAlertAppDelegate: NSObject, UIApplicationDelegate {
             NSLog("CloudKit background subscription setup failed: %@", error.localizedDescription)
         }
         #endif
+    }
+
+    private static func directAlertID(from userInfo: [AnyHashable: Any]) -> UUID? {
+        guard let rawValue = userInfo["alertID"] as? String else {
+            return nil
+        }
+
+        return UUID(uuidString: rawValue)
     }
 }
 

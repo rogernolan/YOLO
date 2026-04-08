@@ -203,6 +203,57 @@ func apnsConfigurationLoadsFromEnvironment() {
     #expect(configuration.host == "api.sandbox.push.apple.com")
 }
 
+@Test
+func localFallbackSkipsNotificationWhenAlreadyMarkedRemoteDelivered() async throws {
+    let alertID = UUID()
+    let decider = LocalNotificationFallbackDecider(
+        delay: .seconds(2),
+        sleep: { _ in }
+    )
+
+    let shouldNotify = try await decider.shouldNotifyLocally(
+        for: alertID,
+        initiallyDeliveredAlertIDs: [alertID],
+        refreshDeliveredAlertIDs: { [] }
+    )
+
+    #expect(shouldNotify == false)
+}
+
+@Test
+func localFallbackSkipsNotificationWhenRemoteDeliveryArrivesDuringGracePeriod() async throws {
+    let alertID = UUID()
+    let decider = LocalNotificationFallbackDecider(
+        delay: .seconds(2),
+        sleep: { _ in }
+    )
+
+    let shouldNotify = try await decider.shouldNotifyLocally(
+        for: alertID,
+        initiallyDeliveredAlertIDs: [],
+        refreshDeliveredAlertIDs: { [alertID] }
+    )
+
+    #expect(shouldNotify == false)
+}
+
+@Test
+func localFallbackNotifiesWhenRemoteDeliveryNeverArrives() async throws {
+    let alertID = UUID()
+    let decider = LocalNotificationFallbackDecider(
+        delay: .seconds(2),
+        sleep: { _ in }
+    )
+
+    let shouldNotify = try await decider.shouldNotifyLocally(
+        for: alertID,
+        initiallyDeliveredAlertIDs: [],
+        refreshDeliveredAlertIDs: { [] }
+    )
+
+    #expect(shouldNotify == true)
+}
+
 #if canImport(CloudKit)
 @Test
 func cloudKitBackgroundSubscriptionUsesSilentPushes() throws {
