@@ -23,19 +23,15 @@ Current status:
 - CloudKit inbox sync is working
 - background CloudKit wakeups have worked on-device
 - unread state, deletion, and yes/no responses are working
-- direct APNs delivery code is implemented
+- direct APNs delivery is working from the macOS helper
 - iPhone device-token registration to CloudKit is implemented
 - macOS helper support for direct APNs sending is implemented
-
-Important caveat:
-
-- direct APNs delivery is not yet tested end to end with a real `.p8` auth key in this setup
-- treat the direct push path as implemented but not yet production-proven
 
 If you are evaluating readiness, the honest summary is:
 
 - the app/inbox workflow works
-- the direct APNs path is ready for first real-world validation
+- the direct APNs path has now been validated end to end in a real local setup
+- this is still early software and should not yet be treated as battle-tested production infrastructure
 
 ## Why this exists
 
@@ -79,6 +75,7 @@ This path is working now, but background presentation is best-effort.
 6. The iPhone app still uses CloudKit as the inbox/state system.
 
 This is the path intended to make lock-screen delivery reliable.
+It has now been tested end to end in a real local development setup using a real APNs auth key.
 
 ### Response flow
 
@@ -367,16 +364,21 @@ If you need my attention, use `./scripts/send_phone_alert.sh`.
 - The iPhone app must be launched at least once after install so it can register and upload its APNs device token.
 - Background CloudKit notifications alone are not reliable enough to be treated as guaranteed lock-screen delivery.
 
-## Recommended next validation
+## Validation status
 
-To validate the direct push path:
+What has been validated:
 
-1. install/run the app on the real phone
-2. confirm notifications are allowed
-3. create the APNs `.p8` key
-4. fill in `~/.config/codex-alert/.env`
-5. send a fresh alert with `./scripts/send_phone_alert.sh send ...`
-6. confirm it appears as a visible APNs notification on the lock screen
+1. the app can register an APNs device token
+2. the device token can be stored in CloudKit
+3. the macOS helper can fetch the registered device
+4. the helper can send a direct APNs push using a real `.p8` auth key
+5. the push can appear as a visible lock-screen notification on the phone
+
+What is still not proven:
+
+- long-term reliability across app reinstalls, token rotation, and multiple devices
+- behavior in production/TestFlight configuration
+- operational robustness under repeated or parallel sends
 
 ## Screenshots to add later
 
