@@ -246,6 +246,13 @@ actor AlertSyncService {
     }
 
     func delete(ids: [UUID]) async throws {
+        #if canImport(CloudKit)
+        if CodexAlertConfig.cloudKit.isUsable {
+            let sync = CloudKitAttentionSync(containerIdentifier: CodexAlertConfig.cloudKit.containerIdentifier)
+            try await sync.deleteAlerts(ids: ids)
+        }
+        #endif
+
         try await store.delete(ids: ids)
         try await readStore.remove(ids: ids)
         try await deliveryStore.remove(ids: ids)

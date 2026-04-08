@@ -143,6 +143,18 @@ public struct CloudKitAttentionSync: Sendable {
             .sorted { $0.updatedAt > $1.updatedAt }
     }
 
+    public func deleteAlerts(ids: [UUID]) async throws {
+        guard !ids.isEmpty else {
+            return
+        }
+
+        for id in ids {
+            _ = try await database.deleteRecord(withID: CKRecord.ID(recordName: id.uuidString))
+        }
+
+        try await removeFromFeed(recordNames: ids.map(\.uuidString))
+    }
+
     private static func decode(_ record: CKRecord) throws -> AttentionAlert {
         guard
             let title = record["title"] as? String,
@@ -218,11 +230,27 @@ public struct CloudKitAttentionSync: Sendable {
             feedRecord = CKRecord(recordType: Self.feedRecordType, recordID: feedRecordID)
         }
 
-        var names = feedRecord[Self.recentRecordNamesKey] as? [String] ?? []
-        names.removeAll { $0 == recordName }
-        names.insert(recordName, at: 0)
-        feedRecord[Self.recentRecordNamesKey] = Array(names.prefix(limit))
+        let names = feedRecord[Self.recentRecordNamesKey] as? [String] ?? []
+        feedRecord[Self.recentRecordNamesKey] = Self.updatedRecordNames(
+            from: names,
+            prepending: recordName,
+            limit: limit
+        )
 
+        _ = try await database.save(feedRecord)
+    }
+
+    private func removeFromFeed(recordNames: [String]) async throws {
+        let feedRecordID = CKRecord.ID(recordName: Self.feedRecordName)
+        guard let feedRecord = try? await database.record(for: feedRecordID) else {
+            return
+        }
+
+        let names = feedRecord[Self.recentRecordNamesKey] as? [String] ?? []
+        let updatedNames = recordNames.reduce(names) { partialResult, recordName in
+            Self.updatedRecordNames(from: partialResult, removing: recordName, limit: 50)
+        }
+        feedRecord[Self.recentRecordNamesKey] = updatedNames
         _ = try await database.save(feedRecord)
     }
 
@@ -263,6 +291,25 @@ public struct CloudKitAttentionSync: Sendable {
 
     public static func deviceRegistrationRecordName(for registrationID: String) -> String {
         "device-\(registrationID)"
+    }
+
+    public static func updatedRecordNames(
+        from existingNames: [String],
+        prepending recordName: String,
+        limit: Int
+    ) -> [String] {
+        var names = existingNames
+        names.removeAll { $0 == recordName }
+        names.insert(recordName, at: 0)
+        return Array(names.prefix(limit))
+    }
+
+    public static func updatedRecordNames(
+        from existingNames: [String],
+        removing recordName: String,
+        limit: Int
+    ) -> [String] {
+        Array(existingNames.filter { $0 != recordName }.prefix(limit))
     }
 }
 

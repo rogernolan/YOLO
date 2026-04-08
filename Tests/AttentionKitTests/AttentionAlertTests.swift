@@ -271,4 +271,15 @@ func cloudKitDeviceRegistrationRecordNameUsesStablePrefix() {
             == "device-install-1"
     )
 }
+
+@Test
+func cloudKitFeedRecordNamesRemoveDeletedAlertAndPreserveOrder() {
+    let updated = CloudKitAttentionSync.updatedRecordNames(
+        from: ["c", "b", "a"],
+        removing: "b",
+        limit: 50
+    )
+
+    #expect(updated == ["c", "a"])
+}
 #endif
