@@ -17,6 +17,9 @@ public struct SendAlertCommand: Sendable {
     public let responseOptions: [String]?
     public let shouldWaitForResponse: Bool
     public let timeoutSeconds: Int
+    public let followUpAfterSeconds: Int?
+    public let followUpTitle: String?
+    public let followUpBody: String?
 
     public init(
         kind: Kind,
@@ -29,7 +32,10 @@ public struct SendAlertCommand: Sendable {
         type: AttentionAlert.AlertType,
         responseOptions: [String]?,
         shouldWaitForResponse: Bool,
-        timeoutSeconds: Int
+        timeoutSeconds: Int,
+        followUpAfterSeconds: Int?,
+        followUpTitle: String?,
+        followUpBody: String?
     ) {
         self.kind = kind
         self.title = title
@@ -42,6 +48,9 @@ public struct SendAlertCommand: Sendable {
         self.responseOptions = responseOptions
         self.shouldWaitForResponse = shouldWaitForResponse
         self.timeoutSeconds = timeoutSeconds
+        self.followUpAfterSeconds = followUpAfterSeconds
+        self.followUpTitle = followUpTitle
+        self.followUpBody = followUpBody
     }
 
     public static func parse(_ arguments: [String]) throws -> SendAlertCommand {
@@ -96,6 +105,13 @@ public struct SendAlertCommand: Sendable {
         )
         let shouldWaitForResponse = flags.contains("wait")
         let timeoutSeconds = Int(values["timeout-seconds"] ?? "1800") ?? 1800
+        let followUpAfterSeconds = try parsedFollowUpAfterSeconds(
+            kind: kind,
+            shouldWaitForResponse: shouldWaitForResponse,
+            values: values
+        )
+        let followUpTitle = values["follow-up-title"]
+        let followUpBody = values["follow-up-body"]
 
         return SendAlertCommand(
             kind: kind,
@@ -108,7 +124,10 @@ public struct SendAlertCommand: Sendable {
             type: type,
             responseOptions: responseOptions,
             shouldWaitForResponse: shouldWaitForResponse,
-            timeoutSeconds: timeoutSeconds
+            timeoutSeconds: timeoutSeconds,
+            followUpAfterSeconds: followUpAfterSeconds,
+            followUpTitle: followUpTitle,
+            followUpBody: followUpBody
         )
     }
 
@@ -122,6 +141,24 @@ public struct SendAlertCommand: Sendable {
             projectName: projectName,
             type: type,
             responseOptions: kind == .ask ? (responseOptions ?? ["yes", "no"]) : nil
+        )
+    }
+
+    public func makeFollowUpAlert() throws -> AttentionAlert? {
+        guard kind == .ask, let followUpAfterSeconds else {
+            return nil
+        }
+
+        _ = followUpAfterSeconds
+
+        return try AttentionAlert(
+            title: followUpTitle ?? "Question still waiting",
+            body: followUpBody ?? defaultFollowUpBody,
+            sender: sender,
+            urgency: urgency,
+            taskName: taskName,
+            projectName: projectName,
+            type: .blocked
         )
     }
 
@@ -145,6 +182,34 @@ public struct SendAlertCommand: Sendable {
 
         return options
     }
+
+    private static func parsedFollowUpAfterSeconds(
+        kind: Kind,
+        shouldWaitForResponse: Bool,
+        values: [String: String]
+    ) throws -> Int? {
+        guard let rawValue = values["follow-up-after-seconds"] else {
+            return nil
+        }
+
+        guard kind == .ask else {
+            throw SendAlertCommandError.followUpRequiresAsk
+        }
+
+        guard shouldWaitForResponse else {
+            throw SendAlertCommandError.followUpRequiresWait
+        }
+
+        guard let seconds = Int(rawValue), seconds > 0 else {
+            throw SendAlertCommandError.invalidFollowUpAfterSeconds
+        }
+
+        return seconds
+    }
+
+    private var defaultFollowUpBody: String {
+        "The question \"\(title)\" is still unanswered."
+    }
 }
 
 public enum SendAlertCommandError: LocalizedError {
@@ -153,6 +218,9 @@ public enum SendAlertCommandError: LocalizedError {
     case missingValue(String)
     case invalidResponseOptionsCount
     case responseOptionsRequireAsk
+    case followUpRequiresAsk
+    case followUpRequiresWait
+    case invalidFollowUpAfterSeconds
 
     public var errorDescription: String? {
         switch self {
@@ -166,6 +234,12 @@ public enum SendAlertCommandError: LocalizedError {
             "Use `--option` 2 or 3 times when providing custom response choices."
         case .responseOptionsRequireAsk:
             "Custom response options are only supported with `ask`."
+        case .followUpRequiresAsk:
+            "Follow-up reminders are only supported with `ask`."
+        case .followUpRequiresWait:
+            "Follow-up reminders require `--wait`."
+        case .invalidFollowUpAfterSeconds:
+            "Use a positive number of seconds for `--follow-up-after-seconds`."
         }
     }
 }

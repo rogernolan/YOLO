@@ -28,6 +28,8 @@
 		A1000001000000000000002D /* APNsPushConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000002F /* APNsPushConfiguration.swift */; };
 		A10000010000000000000039 /* LocalNotificationFallbackDecider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000003A /* LocalNotificationFallbackDecider.swift */; };
 		A1000001000000000000003B /* LocalNotificationFallbackDecider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000003A /* LocalNotificationFallbackDecider.swift */; };
+		A1000001000000000000003C /* ResponseWaiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000003D /* ResponseWaiter.swift */; };
+		A1000001000000000000003E /* ResponseWaiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000003D /* ResponseWaiter.swift */; };
 		A10000010000000000000035 /* APNsPushSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000010000000000000036 /* APNsPushSender.swift */; };
 		A10000010000000000000037 /* APNsPushSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000010000000000000036 /* APNsPushSender.swift */; };
 		A10000010000000000000038 /* APNsPushConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001000000000000002F /* APNsPushConfiguration.swift */; };
@@ -54,6 +56,7 @@
 		A1000001000000000000002E /* AttentionDeviceRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttentionDeviceRegistration.swift; path = Sources/AttentionKit/AttentionDeviceRegistration.swift; sourceTree = SOURCE_ROOT; };
 		A1000001000000000000002F /* APNsPushConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APNsPushConfiguration.swift; path = Sources/AttentionKit/APNsPushConfiguration.swift; sourceTree = SOURCE_ROOT; };
 		A1000001000000000000003A /* LocalNotificationFallbackDecider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalNotificationFallbackDecider.swift; path = Sources/AttentionKit/LocalNotificationFallbackDecider.swift; sourceTree = SOURCE_ROOT; };
+		A1000001000000000000003D /* ResponseWaiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ResponseWaiter.swift; path = Sources/AttentionKit/ResponseWaiter.swift; sourceTree = SOURCE_ROOT; };
 		A10000010000000000000036 /* APNsPushSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APNsPushSender.swift; path = Sources/AttentionKit/APNsPushSender.swift; sourceTree = SOURCE_ROOT; };
 		C8C0ED802F8271CC00D2D90C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -112,6 +115,7 @@
 				A1000001000000000000002E /* AttentionDeviceRegistration.swift */,
 				A1000001000000000000002F /* APNsPushConfiguration.swift */,
 				A1000001000000000000003A /* LocalNotificationFallbackDecider.swift */,
+				A1000001000000000000003D /* ResponseWaiter.swift */,
 				A10000010000000000000036 /* APNsPushSender.swift */,
 			);
 			name = Shared;
@@ -255,6 +259,7 @@
 				A1000001000000000000002B /* AttentionDeviceRegistration.swift in Sources */,
 				A1000001000000000000002D /* APNsPushConfiguration.swift in Sources */,
 				A10000010000000000000039 /* LocalNotificationFallbackDecider.swift in Sources */,
+				A1000001000000000000003C /* ResponseWaiter.swift in Sources */,
 				A10000010000000000000035 /* APNsPushSender.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -273,6 +278,7 @@
 				A1000001000000000000002C /* AttentionDeviceRegistration.swift in Sources */,
 				A10000010000000000000038 /* APNsPushConfiguration.swift in Sources */,
 				A1000001000000000000003B /* LocalNotificationFallbackDecider.swift in Sources */,
+				A1000001000000000000003E /* ResponseWaiter.swift in Sources */,
 				A10000010000000000000037 /* APNsPushSender.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

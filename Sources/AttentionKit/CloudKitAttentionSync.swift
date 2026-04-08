@@ -56,12 +56,7 @@ public struct CloudKitAttentionSync: Sendable {
         let recordIDs = recordNames.map { CKRecord.ID(recordName: $0) }
         let result = try await database.records(for: recordIDs)
 
-        return try result
-            .compactMap { _, recordResult in
-                let record = try recordResult.get()
-                return try Self.decode(record)
-            }
-            .sorted { $0.createdAt > $1.createdAt }
+        return Self.decodeAlertsSkippingInvalidRecords(result)
     }
 
     public func saveResponse(_ response: AttentionResponse) async throws {
@@ -310,6 +305,20 @@ public struct CloudKitAttentionSync: Sendable {
         limit: Int
     ) -> [String] {
         Array(existingNames.filter { $0 != recordName }.prefix(limit))
+    }
+
+    public static func decodeAlertsSkippingInvalidRecords(
+        _ result: [CKRecord.ID: Result<CKRecord, any Error>]
+    ) -> [AttentionAlert] {
+        result
+            .compactMap { _, recordResult -> AttentionAlert? in
+                guard let record = try? recordResult.get() else {
+                    return nil
+                }
+
+                return try? Self.decode(record)
+            }
+            .sorted { $0.createdAt > $1.createdAt }
     }
 }
 

@@ -115,6 +115,23 @@ func askCommandBuildsCustomThreeChoiceQuestion() throws {
 }
 
 @Test
+func askCommandParsesFollowUpTimeoutConfiguration() throws {
+    let command = try SendAlertCommand.parse([
+        "ask",
+        "--title", "Need a decision",
+        "--body", "What should I do next?",
+        "--wait",
+        "--follow-up-after-seconds", "300",
+        "--follow-up-title", "Question still waiting",
+        "--follow-up-body", "The earlier question is still unanswered.",
+    ])
+
+    #expect(command.followUpAfterSeconds == 300)
+    #expect(command.followUpTitle == "Question still waiting")
+    #expect(command.followUpBody == "The earlier question is still unanswered.")
+}
+
+@Test
 func askCommandRejectsMoreThanThreeOptions() throws {
     #expect(throws: SendAlertCommandError.self) {
         try SendAlertCommand.parse([
@@ -125,6 +142,18 @@ func askCommandRejectsMoreThanThreeOptions() throws {
             "--option", "two",
             "--option", "three",
             "--option", "four",
+        ])
+    }
+}
+
+@Test
+func askCommandRejectsFollowUpTimeoutWithoutWait() throws {
+    #expect(throws: SendAlertCommandError.self) {
+        try SendAlertCommand.parse([
+            "ask",
+            "--title", "Need a decision",
+            "--body", "What should I do next?",
+            "--follow-up-after-seconds", "300",
         ])
     }
 }
@@ -247,6 +276,35 @@ func apnsConfigurationLoadsFromEnvironment() {
 }
 
 @Test
+func apnsSenderRejectsRegistrationsForDifferentTopic() async throws {
+    let sender = APNsPushSender(
+        configuration: APNsPushConfiguration(
+            keyID: "ABC123XYZ",
+            teamID: "TEAM123456",
+            keyPath: "/tmp/AuthKey_TEST.p8",
+            topic: "net.hatbat.CodexAlert"
+        )
+    )
+    let alert = try AttentionAlert(
+        title: "Need review",
+        body: "Please inspect the latest shortlist.",
+        sender: "Codex"
+    )
+    let registrations = [
+        try AttentionDeviceRegistration(
+            id: "install-1",
+            token: "abcdef1234",
+            platform: "iOS",
+            bundleIdentifier: "com.example.OtherApp"
+        )
+    ]
+
+    await #expect(throws: APNsPushSenderError.noMatchingRegistrations(topic: "net.hatbat.CodexAlert")) {
+        _ = try await sender.send(alert: alert, to: registrations)
+    }
+}
+
+@Test
 func localFallbackSkipsNotificationWhenAlreadyMarkedRemoteDelivered() async throws {
     let alertID = UUID()
     let decider = LocalNotificationFallbackDecider(
@@ -297,6 +355,74 @@ func localFallbackNotifiesWhenRemoteDeliveryNeverArrives() async throws {
     #expect(shouldNotify == true)
 }
 
+@Test
+func responseWaiterSendsFollowUpBeforeTimingOut() async throws {
+    let clock = TestClock()
+    let waiter = ResponseWaiter(
+        now: { clock.now },
+        sleep: { seconds in clock.advance(by: seconds) },
+        pollIntervalSeconds: 2
+    )
+    let counter = AsyncCounter()
+
+    await #expect(throws: ResponseWaiterError.self) {
+        try await waiter.waitForResponse(
+            timeoutSeconds: 10,
+            followUpAfterSeconds: 5,
+            fetchResponse: { nil as AttentionResponse? },
+            sendFollowUp: { await counter.increment() }
+        )
+    }
+
+    #expect(await counter.value == 1)
+}
+
+@Test
+func responseWaiterReturnsResponseWithoutSendingFollowUpWhenAnsweredEarly() async throws {
+    let clock = TestClock()
+    let waiter = ResponseWaiter(
+        now: { clock.now },
+        sleep: { seconds in clock.advance(by: seconds) },
+        pollIntervalSeconds: 2
+    )
+    let fetchCounter = AsyncCounter()
+    let followUpCounter = AsyncCounter()
+    let expectedResponse = AttentionResponse(
+        alertID: UUID(),
+        answer: "hold",
+        responder: "Rog"
+    )
+
+    let response = try await waiter.waitForResponse(
+        timeoutSeconds: 10,
+        followUpAfterSeconds: 5,
+        fetchResponse: {
+            await fetchCounter.increment()
+            return await fetchCounter.value >= 2 ? expectedResponse : nil
+        },
+        sendFollowUp: { await followUpCounter.increment() }
+    )
+
+    #expect(response == expectedResponse)
+    #expect(await followUpCounter.value == 0)
+}
+
+private final class TestClock: @unchecked Sendable {
+    var now = Date(timeIntervalSince1970: 0)
+
+    func advance(by seconds: TimeInterval) {
+        now = now.addingTimeInterval(seconds)
+    }
+}
+
+private actor AsyncCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
+    }
+}
+
 #if canImport(CloudKit)
 @Test
 func cloudKitBackgroundSubscriptionUsesSilentPushes() throws {
@@ -324,5 +450,32 @@ func cloudKitFeedRecordNamesRemoveDeletedAlertAndPreserveOrder() {
     )
 
     #expect(updated == ["c", "a"])
+}
+
+@Test
+func cloudKitDecodingSkipsInvalidRecentRecords() throws {
+    let validID = CKRecord.ID(recordName: UUID().uuidString)
+    let validRecord = CKRecord(recordType: CloudKitAttentionSync.recordType, recordID: validID)
+    validRecord["title"] = "Need review"
+    validRecord["body"] = "Please inspect the latest build."
+    validRecord["sender"] = "Codex"
+    validRecord["urgency"] = "high"
+
+    let invalidID = CKRecord.ID(recordName: UUID().uuidString)
+    let invalidRecord = CKRecord(recordType: CloudKitAttentionSync.recordType, recordID: invalidID)
+    invalidRecord["title"] = "Broken"
+
+    enum StubError: Error {
+        case missingRecord
+    }
+
+    let alerts = CloudKitAttentionSync.decodeAlertsSkippingInvalidRecords([
+        validID: .success(validRecord),
+        invalidID: .success(invalidRecord),
+        CKRecord.ID(recordName: UUID().uuidString): .failure(StubError.missingRecord),
+    ])
+
+    #expect(alerts.count == 1)
+    #expect(alerts.first?.title == "Need review")
 }
 #endif

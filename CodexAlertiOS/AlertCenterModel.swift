@@ -192,7 +192,7 @@ actor AlertSyncService {
         #if canImport(CloudKit)
         if CodexAlertConfig.cloudKit.isUsable {
             let sync = CloudKitAttentionSync(containerIdentifier: CodexAlertConfig.cloudKit.containerIdentifier)
-            try await sync.ensureBackgroundSubscription()
+            await ensureBackgroundSubscriptionBestEffort(using: sync)
 
             let remoteAlerts = try await sync.fetchRecent()
             let existingIDs = Set(mergedAlerts.map(\.id))
@@ -303,6 +303,14 @@ actor AlertSyncService {
         )
 
         try await UNUserNotificationCenter.current().add(request)
+    }
+
+    private func ensureBackgroundSubscriptionBestEffort(using sync: CloudKitAttentionSync) async {
+        do {
+            try await sync.ensureBackgroundSubscription()
+        } catch {
+            NSLog("CloudKit background subscription refresh failed: %@", error.localizedDescription)
+        }
     }
 }
 

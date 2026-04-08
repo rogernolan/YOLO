@@ -12,7 +12,7 @@ public struct APNsPushSender: Sendable {
         self.session = session
     }
 
-    public func send(alert: AttentionAlert, to registrations: [AttentionDeviceRegistration]) async throws {
+    public func send(alert: AttentionAlert, to registrations: [AttentionDeviceRegistration]) async throws -> Int {
         guard configuration.isUsable else {
             throw APNsPushSenderError.invalidConfiguration
         }
@@ -21,10 +21,15 @@ public struct APNsPushSender: Sendable {
             throw APNsPushSenderError.noRegistrations
         }
 
+        let matchingRegistrations = registrations.filter { $0.bundleIdentifier == configuration.topic }
+        guard !matchingRegistrations.isEmpty else {
+            throw APNsPushSenderError.noMatchingRegistrations(topic: configuration.topic)
+        }
+
         let jwt = try Self.makeJWT(configuration: configuration)
 
         try await withThrowingTaskGroup(of: Void.self) { group in
-            for registration in registrations where registration.bundleIdentifier == configuration.topic {
+            for registration in matchingRegistrations {
                 group.addTask {
                     try await send(alert: alert, to: registration, jwt: jwt)
                 }
@@ -32,6 +37,8 @@ public struct APNsPushSender: Sendable {
 
             try await group.waitForAll()
         }
+
+        return matchingRegistrations.count
     }
 
     private func send(alert: AttentionAlert, to registration: AttentionDeviceRegistration, jwt: String) async throws {
@@ -178,6 +185,7 @@ private struct APSAlert: Encodable {
 public enum APNsPushSenderError: LocalizedError, Equatable {
     case invalidConfiguration
     case noRegistrations
+    case noMatchingRegistrations(topic: String)
     case invalidEndpoint
     case invalidPrivateKey
     case invalidResponse
@@ -190,6 +198,8 @@ public enum APNsPushSenderError: LocalizedError, Equatable {
             "APNs configuration is incomplete."
         case .noRegistrations:
             "No APNs device registrations are available."
+        case let .noMatchingRegistrations(topic):
+            "No APNs device registrations match topic \(topic)."
         case .invalidEndpoint:
             "Could not create the APNs endpoint URL."
         case .invalidPrivateKey:
