@@ -8,7 +8,7 @@ When you need my attention and the task has involved more than 10 minutes of act
 Use:
 
 - `/Users/rog/Development/Codex\ alert/scripts/send_phone_alert.sh send` for one-way alerts
-- `/Users/rog/Development/Codex\ alert/scripts/send_phone_alert.sh ask --wait` for yes/no questions
+- `/Users/rog/Development/Codex\ alert/scripts/send_phone_alert.sh ask --wait` for questions that need 2-3 explicit response choices
 
 Send an alert when:
 
@@ -28,5 +28,5 @@ Include:
 - `--task` with the current task
 - `--type` set to `blocked`, `decision`, `approval`, `review`, or `info`
 
-Use `ask --wait` only when you genuinely need a yes/no answer before continuing.
+Use `ask --wait` only when you genuinely need an answer before continuing. Default to yes/no for binary decisions, or add `--option` 2 or 3 times for richer choices.
 ```

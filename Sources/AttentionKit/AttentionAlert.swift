@@ -82,6 +82,11 @@ public struct AttentionAlert: Codable, Equatable, Identifiable, Sendable {
             throw AttentionAlertError.emptySender
         }
 
+        if let normalizedResponseOptions,
+           !(2 ... 3).contains(normalizedResponseOptions.count) {
+            throw AttentionAlertError.invalidResponseOptionsCount
+        }
+
         self.id = id
         self.title = normalizedTitle
         self.body = normalizedBody
@@ -114,6 +119,7 @@ public enum AttentionAlertError: LocalizedError, Equatable {
     case emptyTitle
     case emptyBody
     case emptySender
+    case invalidResponseOptionsCount
 
     public var errorDescription: String? {
         switch self {
@@ -123,6 +129,8 @@ public enum AttentionAlertError: LocalizedError, Equatable {
             "Alert body cannot be empty."
         case .emptySender:
             "Alert sender cannot be empty."
+        case .invalidResponseOptionsCount:
+            "Alerts with response options must include between 2 and 3 choices."
         }
     }
 }

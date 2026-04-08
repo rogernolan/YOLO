@@ -10,7 +10,7 @@ Project-specific escalation rule:
 Use:
 
 - `/Users/rog/Development/Codex\ alert/scripts/send_phone_alert.sh send` for one-way alerts
-- `/Users/rog/Development/Codex\ alert/scripts/send_phone_alert.sh ask --wait` for yes/no questions
+- `/Users/rog/Development/Codex\ alert/scripts/send_phone_alert.sh ask --wait` for questions that need 2-3 explicit response choices
 
 Always include:
 

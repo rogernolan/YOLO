@@ -107,7 +107,7 @@ struct CodexAlertCLIApp: App {
     private static let usage = """
     Usage:
       CodexAlertCLI send --title "Need input" --body "Please review this blocker." [--sender Codex] [--urgency low|normal|high|critical] [--task "Task name"] [--project "Project name"] [--type blocked|decision|approval|review|info]
-      CodexAlertCLI ask --title "Proceed?" --body "Should I continue with the risky fix?" [--sender Codex] [--task "Task name"] [--project "Project name"] [--urgency high] [--wait] [--timeout-seconds 1800]
+      CodexAlertCLI ask --title "Proceed?" --body "Should I continue with the risky fix?" [--sender Codex] [--task "Task name"] [--project "Project name"] [--urgency high] [--option "yes"] [--option "no"] [--option "later"] [--wait] [--timeout-seconds 1800]
 
     """
 

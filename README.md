@@ -11,11 +11,11 @@ It is meant for moments when Codex or Claude needs you to notice something whils
 - a design decision
 - a review prompt
 
-The app can also roundtrip a yes/no question back to the agent
+The app can also roundtrip a 2-3 choice question back to the agent
 
 The project currently includes:
 
-- `CodexAlert`: an iPhone app that shows alerts, unread state, swipe-to-delete, and yes/no responses
+- `CodexAlert`: an iPhone app that shows alerts, unread state, swipe-to-delete, and 2-3 choice responses
 - `CodexAlertCLI`: a signed macOS helper app that sends alerts
 - `AttentionKit`: shared Swift code for alert models, CloudKit sync, responses, APNs configuration, and delivery helpers
 
@@ -25,7 +25,7 @@ Current status:
 
 - CloudKit inbox sync is working
 - background CloudKit wakeups have worked on-device
-- unread state, deletion, and yes/no responses are working
+- unread state, deletion, and 2-3 choice responses are working
 - direct APNs delivery is working from the macOS helper
 - iPhone device-token registration to CloudKit is implemented
 - macOS helper support for direct APNs sending is implemented
@@ -74,7 +74,7 @@ This is intended to make lock-screen delivery reliable and fast
 
 For question alerts:
 
-1. The helper sends an alert with `responseOptions`, currently `yes` and `no`.
+1. The helper sends an alert with `responseOptions`, using 2-3 explicit choices.
 2. The phone app renders response buttons.
 3. Tapping a response writes an `AttentionResponse` record to CloudKit.
 4. The helper can wait for that response and continue once it appears.
@@ -88,8 +88,8 @@ For question alerts:
   - project
   - task
   - type: `blocked`, `decision`, `approval`, `review`, `info`
-- yes/no response buttons
-- helper wait mode for yes/no answers
+- 2-3 choice response buttons
+- helper wait mode for 2-3 choice answers
 - CloudKit sync for inbox and responses
 - direct APNs sender support in the macOS helper
 
@@ -269,14 +269,17 @@ Given this readme file and enough access, Codex or Claude can set this up given 
   --type decision
 ```
 
-### Yes/no question
+### Question with explicit choices
 
 ```bash
 ./scripts/send_phone_alert.sh ask \
   --title "Ship this build?" \
-  --body "Tests are green but the copy changed. Ship it?" \
+  --body "Tests are green but the copy changed. What should I do?" \
   --project "Release" \
   --task "Version 1.2.3" \
+  --option "ship" \
+  --option "hold" \
+  --option "investigate" \
   --wait \
   --timeout-seconds 1800
 ```
@@ -302,7 +305,7 @@ Add something like this to your project instructions or Codex skill:
 When you need my attention and the task has involved more than 10 minutes of active work, send a phone alert with:
 
 - `./scripts/send_phone_alert.sh send` for one-way alerts
-- `./scripts/send_phone_alert.sh ask` for yes/no questions
+- `./scripts/send_phone_alert.sh ask` for questions that need 2-3 response choices
 
 Include:
 
@@ -312,7 +315,7 @@ Include:
 - `--task` with the current task
 - `--type` set to `blocked`, `decision`, `approval`, `review`, or `info`
 
-Use `ask --wait` when you need a yes/no answer before continuing.
+Use `ask --wait` when you need a response before continuing. Default to yes/no for binary decisions, or add `--option` 2 or 3 times for a richer choice set.
 ```
 
 ## Skills
@@ -349,7 +352,7 @@ If Claude Code has shell access, it can use the same helper command:
 If you need my attention, use `./scripts/send_phone_alert.sh`.
 
 - Use `send` for updates, blockers, approvals, or review requests.
-- Use `ask --wait` for yes/no decisions you need before continuing.
+- Use `ask --wait` for decisions that need a 2-3 choice answer before continuing.
 - Include project, task, and type metadata whenever possible.
 ```
 
@@ -360,7 +363,7 @@ If you need my attention, use `./scripts/send_phone_alert.sh`.
 
 ![Inbox question](docs/screenshots/inbox-question.png)
 
-The app inbox showing unread alerts plus an active yes/no question.
+The app inbox showing unread alerts plus an active question with response buttons.
 
 ### Answered question state
 

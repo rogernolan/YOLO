@@ -171,7 +171,7 @@ private struct AlertRow: View {
                             onRespond(option)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(option == "yes" ? .green : .orange)
+                        .tint(tint(for: option))
                         .controlSize(.small)
                     }
                 }
@@ -213,6 +213,17 @@ private struct AlertRow: View {
             .green
         case .info:
             .secondary
+        }
+    }
+
+    private func tint(for option: String) -> Color {
+        switch option {
+        case "yes", "approve", "ship", "now":
+            .green
+        case "no", "reject", "skip":
+            .red
+        default:
+            .orange
         }
     }
 }

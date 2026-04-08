@@ -14,6 +14,7 @@ public struct SendAlertCommand: Sendable {
     public let taskName: String?
     public let projectName: String?
     public let type: AttentionAlert.AlertType
+    public let responseOptions: [String]?
     public let shouldWaitForResponse: Bool
     public let timeoutSeconds: Int
 
@@ -26,6 +27,7 @@ public struct SendAlertCommand: Sendable {
         taskName: String?,
         projectName: String?,
         type: AttentionAlert.AlertType,
+        responseOptions: [String]?,
         shouldWaitForResponse: Bool,
         timeoutSeconds: Int
     ) {
@@ -37,6 +39,7 @@ public struct SendAlertCommand: Sendable {
         self.taskName = taskName
         self.projectName = projectName
         self.type = type
+        self.responseOptions = responseOptions
         self.shouldWaitForResponse = shouldWaitForResponse
         self.timeoutSeconds = timeoutSeconds
     }
@@ -47,6 +50,7 @@ public struct SendAlertCommand: Sendable {
         }
 
         var values: [String: String] = [:]
+        var repeatedValues: [String: [String]] = [:]
         var flags = Set<String>()
         var index = 1
 
@@ -62,6 +66,7 @@ public struct SendAlertCommand: Sendable {
 
             if nextIndex < arguments.count, !arguments[nextIndex].hasPrefix("--") {
                 values[normalizedKey] = arguments[nextIndex]
+                repeatedValues[normalizedKey, default: []].append(arguments[nextIndex])
                 index += 2
             } else {
                 flags.insert(normalizedKey)
@@ -85,6 +90,10 @@ public struct SendAlertCommand: Sendable {
         let defaultType = kind == .ask ? "decision" : "info"
         let type = AttentionAlert.AlertType(rawValue: values["type"] ?? defaultType)
             ?? (kind == .ask ? .decision : .info)
+        let responseOptions = try parsedResponseOptions(
+            kind: kind,
+            repeatedValues: repeatedValues
+        )
         let shouldWaitForResponse = flags.contains("wait")
         let timeoutSeconds = Int(values["timeout-seconds"] ?? "1800") ?? 1800
 
@@ -97,6 +106,7 @@ public struct SendAlertCommand: Sendable {
             taskName: taskName,
             projectName: projectName,
             type: type,
+            responseOptions: responseOptions,
             shouldWaitForResponse: shouldWaitForResponse,
             timeoutSeconds: timeoutSeconds
         )
@@ -111,8 +121,29 @@ public struct SendAlertCommand: Sendable {
             taskName: taskName,
             projectName: projectName,
             type: type,
-            responseOptions: kind == .ask ? ["yes", "no"] : nil
+            responseOptions: kind == .ask ? (responseOptions ?? ["yes", "no"]) : nil
         )
+    }
+
+    private static func parsedResponseOptions(
+        kind: Kind,
+        repeatedValues: [String: [String]]
+    ) throws -> [String]? {
+        let options = repeatedValues["option"]
+
+        guard let options else {
+            return nil
+        }
+
+        guard kind == .ask else {
+            throw SendAlertCommandError.responseOptionsRequireAsk
+        }
+
+        guard (2 ... 3).contains(options.count) else {
+            throw SendAlertCommandError.invalidResponseOptionsCount
+        }
+
+        return options
     }
 }
 
@@ -120,6 +151,8 @@ public enum SendAlertCommandError: LocalizedError {
     case unsupportedCommand
     case invalidArguments
     case missingValue(String)
+    case invalidResponseOptionsCount
+    case responseOptionsRequireAsk
 
     public var errorDescription: String? {
         switch self {
@@ -129,6 +162,10 @@ public enum SendAlertCommandError: LocalizedError {
             "Arguments must be provided as `--key value` pairs."
         case let .missingValue(key):
             "Missing required argument `--\(key)`."
+        case .invalidResponseOptionsCount:
+            "Use `--option` 2 or 3 times when providing custom response choices."
+        case .responseOptionsRequireAsk:
+            "Custom response options are only supported with `ask`."
         }
     }
 }

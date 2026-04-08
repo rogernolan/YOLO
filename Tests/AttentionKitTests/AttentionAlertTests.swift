@@ -99,6 +99,49 @@ func askCommandBuildsAYesNoQuestionAndWaitsWhenRequested() throws {
 }
 
 @Test
+func askCommandBuildsCustomThreeChoiceQuestion() throws {
+    let command = try SendAlertCommand.parse([
+        "ask",
+        "--title", "What should I do?",
+        "--body", "Choose the next step.",
+        "--option", "ship",
+        "--option", "hold",
+        "--option", "investigate",
+    ])
+
+    let alert = try command.makeAlert()
+    #expect(alert.responseOptions == ["ship", "hold", "investigate"])
+    #expect(alert.type == .decision)
+}
+
+@Test
+func askCommandRejectsMoreThanThreeOptions() throws {
+    #expect(throws: SendAlertCommandError.self) {
+        try SendAlertCommand.parse([
+            "ask",
+            "--title", "Too many",
+            "--body", "This should fail.",
+            "--option", "one",
+            "--option", "two",
+            "--option", "three",
+            "--option", "four",
+        ])
+    }
+}
+
+@Test
+func attentionAlertRejectsSingleResponseOption() {
+    #expect(throws: AttentionAlertError.self) {
+        _ = try AttentionAlert(
+            title: "Need input",
+            body: "Pick one.",
+            sender: "Codex",
+            responseOptions: ["only"]
+        )
+    }
+}
+
+@Test
 func cloudKitConfigurationRejectsPlaceholderIdentifiers() {
     #expect(CloudKitSyncConfiguration(containerIdentifier: "iCloud.com.example.CodexAlert").isUsable == false)
     #expect(CloudKitSyncConfiguration(containerIdentifier: "").isUsable == false)
