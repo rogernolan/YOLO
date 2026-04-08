@@ -2,7 +2,7 @@
 
 Codex Alert is a small iPhone app plus macOS helper for agent-to-human attention handoff.
 
-![Lock screen APNs notification](docs/screenshots/lock-screen-apns.png)
+<img src="docs/screenshots/lock-screen-apns.png" alt="Lock screen APNs notification" width="320" />
 
 It is meant for moments when Codex or Claude needs you to notice something whilst you are away from the terminal:
 
@@ -361,12 +361,12 @@ If you need my attention, use `./scripts/send_phone_alert.sh`.
 
 ### Inbox with question and actions
 
-![Inbox question](docs/screenshots/inbox-question.png)
+<img src="docs/screenshots/inbox-question.png" alt="Inbox question" width="320" />
 
 The app inbox showing unread alerts plus an active question with response buttons.
 
 ### Answered question state
 
-![Inbox answered](docs/screenshots/inbox-answered.png)
+<img src="docs/screenshots/inbox-answered.png" alt="Inbox answered" width="320" />
 
 The same question after answering, with the response recorded in the app.
