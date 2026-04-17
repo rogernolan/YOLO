@@ -40,6 +40,13 @@ xcodebuild \
   -destination 'generic/platform=macOS' \
   -derivedDataPath "${DERIVED_DATA_DIR}" \
   -allowProvisioningUpdates \
-  build >/dev/null
+  build >/dev/null 2>&1 || {
+    if [[ -x "${APP_BINARY}" ]]; then
+      echo "Warning: CodexAlertCLI rebuild failed; using existing binary at ${APP_BINARY}" >&2
+    else
+      echo "Error: CodexAlertCLI rebuild failed and no existing binary is available at ${APP_BINARY}" >&2
+      exit 65
+    fi
+  }
 
 "${APP_BINARY}" "${COMMAND}" "${CLI_ARGS[@]}"
