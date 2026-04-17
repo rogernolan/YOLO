@@ -21,6 +21,12 @@ load_env_file() {
 load_env_file "${GLOBAL_ENV_FILE}"
 load_env_file "${LOCAL_ENV_FILE}"
 
+REBUILD=0
+if [[ $# -gt 0 && "$1" == "--rebuild" ]]; then
+  REBUILD=1
+  shift
+fi
+
 COMMAND=send
 if [[ $# -gt 0 && ( "$1" == "send" || "$1" == "ask" ) ]]; then
   COMMAND="$1"
@@ -30,23 +36,26 @@ fi
 CLI_ARGS=("$@")
 
 if [[ ${#CLI_ARGS[@]} -eq 0 ]]; then
-  echo "Usage: $0 [send|ask] --title <title> --body <body> [additional codex-alert options]" >&2
+  echo "Usage: $0 [--rebuild] [send|ask] --title <title> --body <body> [additional codex-alert options]" >&2
   exit 64
 fi
 
-xcodebuild \
-  -project "${PROJECT_DIR}/CodexAlert.xcodeproj" \
-  -scheme CodexAlertCLI \
-  -destination 'generic/platform=macOS' \
-  -derivedDataPath "${DERIVED_DATA_DIR}" \
-  -allowProvisioningUpdates \
-  build >/dev/null 2>&1 || {
-    if [[ -x "${APP_BINARY}" ]]; then
-      echo "Warning: CodexAlertCLI rebuild failed; using existing binary at ${APP_BINARY}" >&2
-    else
-      echo "Error: CodexAlertCLI rebuild failed and no existing binary is available at ${APP_BINARY}" >&2
+if [[ "${REBUILD}" -eq 1 || ! -x "${APP_BINARY}" ]]; then
+  xcodebuild \
+    -project "${PROJECT_DIR}/CodexAlert.xcodeproj" \
+    -scheme CodexAlertCLI \
+    -destination 'generic/platform=macOS' \
+    -derivedDataPath "${DERIVED_DATA_DIR}" \
+    -allowProvisioningUpdates \
+    build >/dev/null 2>&1 || {
+      echo "Error: CodexAlertCLI rebuild failed." >&2
       exit 65
-    fi
-  }
+    }
+fi
+
+if [[ ! -x "${APP_BINARY}" ]]; then
+  echo "Error: CodexAlertCLI binary is not available at ${APP_BINARY}" >&2
+  exit 65
+fi
 
 "${APP_BINARY}" "${COMMAND}" "${CLI_ARGS[@]}"

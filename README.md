@@ -297,6 +297,8 @@ The stable command is:
 ./scripts/send_phone_alert.sh
 ```
 
+By default, the wrapper uses the current built `CodexAlertCLI` binary. Use `./scripts/send_phone_alert.sh --rebuild ...` only when you explicitly want a fresh local rebuild first, such as while developing Codex Alert itself.
+
 ### Recommended Codex instruction
 
 Add something like this to your project instructions or Codex skill:
